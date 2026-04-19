@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Job, JobStatus, Role } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/badge'; // Note: Re-using badge styling for some elements if needed, but actually Button was used. 
 import { Button as UIButton } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -65,7 +64,6 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
               </UIButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass border-white/10">
-              <DropdownMenuItem className="text-sm">View Details</DropdownMenuItem>
               {role === 'manager' && (
                 <>
                   {job.status !== 'unconfirmed' && (
