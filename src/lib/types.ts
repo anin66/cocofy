@@ -14,6 +14,7 @@ export type JobStatus = 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'com
 export interface Job {
   id: string;
   customerName: string;
+  customerPhone: string;
   location: string;
   scheduledDate: string;
   treeCount: number;

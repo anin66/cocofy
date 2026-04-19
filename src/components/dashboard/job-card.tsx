@@ -10,7 +10,8 @@ import {
   AlertCircle,
   MoreVertical,
   User,
-  TreePalm
+  TreePalm,
+  Phone
 } from 'lucide-react';
 import { Job, JobStatus, Role } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -80,6 +81,10 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
       
       <CardContent className="p-5 pt-2 space-y-4">
         <div className="space-y-2">
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <Phone className="w-4 h-4 text-primary" />
+            <span className="text-foreground">{job.customerPhone}</span>
+          </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4 text-primary" />
             <span>{job.location}</span>

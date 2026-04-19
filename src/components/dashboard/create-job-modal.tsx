@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Briefcase, TreePalm } from 'lucide-react';
+import { Briefcase, TreePalm, Phone } from 'lucide-react';
 
 interface CreateJobModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ interface CreateJobModalProps {
 export function CreateJobModal({ isOpen, onClose, onAdd }: CreateJobModalProps) {
   const [formData, setFormData] = React.useState({
     customerName: '',
+    customerPhone: '',
     location: '',
     scheduledDate: '',
     treeCount: '1',
@@ -38,7 +39,15 @@ export function CreateJobModal({ isOpen, onClose, onAdd }: CreateJobModalProps) 
       treeCount: parseInt(formData.treeCount) || 1
     });
     onClose();
-    setFormData({ customerName: '', location: '', scheduledDate: '', treeCount: '1', requirements: '', assignedWorkerId: null });
+    setFormData({ 
+      customerName: '', 
+      customerPhone: '',
+      location: '', 
+      scheduledDate: '', 
+      treeCount: '1', 
+      requirements: '', 
+      assignedWorkerId: null 
+    });
   };
 
   return (
@@ -57,16 +66,33 @@ export function CreateJobModal({ isOpen, onClose, onAdd }: CreateJobModalProps) 
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customerName">Customer Name</Label>
-                <Input 
-                  id="customerName" 
-                  placeholder="e.g. Riverside Resort" 
-                  required 
-                  className="bg-white/5 border-white/10 focus:border-primary/50"
-                  value={formData.customerName}
-                  onChange={e => setFormData({ ...formData, customerName: e.target.value })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customerName">Customer Name</Label>
+                  <Input 
+                    id="customerName" 
+                    placeholder="e.g. Riverside Resort" 
+                    required 
+                    className="bg-white/5 border-white/10 focus:border-primary/50"
+                    value={formData.customerName}
+                    onChange={e => setFormData({ ...formData, customerName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customerPhone">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      id="customerPhone" 
+                      type="tel"
+                      placeholder="Customer Phone" 
+                      required 
+                      className="pl-9 bg-white/5 border-white/10 focus:border-primary/50"
+                      value={formData.customerPhone}
+                      onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
