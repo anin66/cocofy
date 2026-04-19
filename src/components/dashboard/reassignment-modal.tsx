@@ -10,6 +10,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Job, UserProfile, WorkerSuggestion } from '@/lib/types';
 import { managerJobReassignmentSuggestion } from '@/ai/flows/manager-job-reassignment-suggestion';
 import { Loader2, Sparkles, UserPlus, Check } from 'lucide-react';
