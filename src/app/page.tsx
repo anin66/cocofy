@@ -20,7 +20,8 @@ export default function Home() {
   const [reassigningJob, setReassigningJob] = useState<Job | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [signupData, setSignupData] = useState({ 
+  
+  const [authData, setAuthData] = useState({ 
     name: '', 
     email: '', 
     role: 'worker' as Role,
@@ -53,28 +54,26 @@ export default function Home() {
             </div>
 
             <div className="space-y-4">
-              {authMode === 'signup' && (
-                <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 mb-4">
-                  <button 
-                    onClick={() => setSignupData({ ...signupData, role: 'worker' })}
-                    className={cn(
-                      "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-                      signupData.role === 'worker' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
-                    )}
-                  >
-                    Worker
-                  </button>
-                  <button 
-                    onClick={() => setSignupData({ ...signupData, role: 'manager' })}
-                    className={cn(
-                      "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-                      signupData.role === 'manager' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
-                    )}
-                  >
-                    Manager
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 mb-4">
+                <button 
+                  onClick={() => setAuthData({ ...authData, role: 'worker' })}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                    authData.role === 'worker' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                  )}
+                >
+                  Worker
+                </button>
+                <button 
+                  onClick={() => setAuthData({ ...authData, role: 'manager' })}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                    authData.role === 'manager' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                  )}
+                >
+                  Manager
+                </button>
+              </div>
 
               <div className="grid grid-cols-1 gap-4">
                 {authMode === 'signup' && (
@@ -84,8 +83,8 @@ export default function Home() {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input 
                         placeholder="e.g. John Doe" 
-                        value={signupData.name}
-                        onChange={e => setSignupData({ ...signupData, name: e.target.value })}
+                        value={authData.name}
+                        onChange={e => setAuthData({ ...authData, name: e.target.value })}
                         className="bg-white/5 border-white/10 pl-10"
                       />
                     </div>
@@ -99,14 +98,14 @@ export default function Home() {
                     <Input 
                       type="email" 
                       placeholder="email@example.com" 
-                      value={signupData.email}
-                      onChange={e => setSignupData({ ...signupData, email: e.target.value })}
+                      value={authData.email}
+                      onChange={e => setAuthData({ ...authData, email: e.target.value })}
                       className="bg-white/5 border-white/10 pl-10"
                     />
                   </div>
                 </div>
 
-                {authMode === 'signup' && signupData.role === 'worker' && (
+                {authMode === 'signup' && authData.role === 'worker' && (
                   <>
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Phone Number</Label>
@@ -115,8 +114,8 @@ export default function Home() {
                         <Input 
                           type="tel" 
                           placeholder="+1 (555) 000-0000" 
-                          value={signupData.phone}
-                          onChange={e => setSignupData({ ...signupData, phone: e.target.value })}
+                          value={authData.phone}
+                          onChange={e => setAuthData({ ...authData, phone: e.target.value })}
                           className="bg-white/5 border-white/10 pl-10"
                         />
                       </div>
@@ -127,8 +126,8 @@ export default function Home() {
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input 
                           type="date" 
-                          value={signupData.dob}
-                          onChange={e => setSignupData({ ...signupData, dob: e.target.value })}
+                          value={authData.dob}
+                          onChange={e => setAuthData({ ...authData, dob: e.target.value })}
                           className="bg-white/5 border-white/10 pl-10 text-white"
                         />
                       </div>
@@ -143,8 +142,8 @@ export default function Home() {
                     <Input 
                       type="password" 
                       placeholder="••••••••" 
-                      value={signupData.password}
-                      onChange={e => setSignupData({ ...signupData, password: e.target.value })}
+                      value={authData.password}
+                      onChange={e => setAuthData({ ...authData, password: e.target.value })}
                       className="bg-white/5 border-white/10 pl-10"
                     />
                   </div>
@@ -154,21 +153,12 @@ export default function Home() {
               <div className="flex flex-col gap-3 pt-4">
                 {authMode === 'login' ? (
                   <>
-                    <div className="flex gap-3">
-                      <Button 
-                        onClick={() => store.login('manager')} 
-                        className="flex-1 orange-gradient font-semibold h-12"
-                      >
-                        Manager Login
-                      </Button>
-                      <Button 
-                        onClick={() => store.login('worker')} 
-                        variant="outline"
-                        className="flex-1 border-white/10 bg-white/5 font-semibold h-12 hover:bg-white/10 text-white"
-                      >
-                        Worker Login
-                      </Button>
-                    </div>
+                    <Button 
+                      onClick={() => store.login(authData.role, authData.email)} 
+                      className="w-full orange-gradient font-semibold h-12"
+                    >
+                      Sign In as {authData.role === 'manager' ? 'Manager' : 'Worker'}
+                    </Button>
                     <Button 
                       variant="ghost" 
                       onClick={() => setAuthMode('signup')}
@@ -180,7 +170,7 @@ export default function Home() {
                 ) : (
                   <>
                     <Button 
-                      onClick={() => store.signup(signupData)} 
+                      onClick={() => store.signup(authData)} 
                       className="w-full orange-gradient font-semibold h-12"
                     >
                       Create Account

@@ -8,7 +8,7 @@ export function useCocofyStore() {
   const [workers, setWorkers] = useState<UserProfile[]>([]);
   const [managers, setManagers] = useState<UserProfile[]>([MOCK_MANAGER]);
 
-  const STORAGE_VERSION = 'cocofy_v11_stable_persistence';
+  const STORAGE_VERSION = 'cocofy_v12_stable_persistence';
 
   useEffect(() => {
     const savedJobs = localStorage.getItem(`${STORAGE_VERSION}_jobs`);
@@ -25,34 +25,38 @@ export function useCocofyStore() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_VERSION}_jobs`, JSON.stringify(jobs));
+    if (jobs.length > 0 || localStorage.getItem(`${STORAGE_VERSION}_jobs`)) {
+      localStorage.setItem(`${STORAGE_VERSION}_jobs`, JSON.stringify(jobs));
+    }
   }, [jobs]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_VERSION}_workers`, JSON.stringify(workers));
+    if (workers.length > 0 || localStorage.getItem(`${STORAGE_VERSION}_workers`)) {
+      localStorage.setItem(`${STORAGE_VERSION}_workers`, JSON.stringify(workers));
+    }
   }, [workers]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_VERSION}_managers`, JSON.stringify(managers));
+    if (managers.length > 0 || localStorage.getItem(`${STORAGE_VERSION}_managers`)) {
+      localStorage.setItem(`${STORAGE_VERSION}_managers`, JSON.stringify(managers));
+    }
   }, [managers]);
 
-  const login = (role: 'manager' | 'worker') => {
-    // If we have a specifically logged in user in storage, use them
-    const savedUser = localStorage.getItem(`${STORAGE_VERSION}_user`);
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      if (parsed.role === role) {
-        setCurrentUser(parsed);
-        return;
-      }
-    }
-
-    // Otherwise, try to find the last signed up user of that role or use mock
+  const login = (role: Role, email?: string) => {
+    const list = role === 'worker' ? workers : managers;
     let user: UserProfile | null = null;
-    if (role === 'manager') {
-      user = managers[managers.length - 1] || MOCK_MANAGER;
-    } else {
-      user = workers[workers.length - 1] || null;
+    
+    if (email) {
+      user = list.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+    } 
+    
+    // Fallback if no email match or no email provided
+    if (!user) {
+      if (role === 'manager') {
+        user = managers.find(m => m.id === MOCK_MANAGER.id) || MOCK_MANAGER;
+      } else {
+        user = workers[workers.length - 1] || null;
+      }
     }
 
     if (user) {
