@@ -7,7 +7,7 @@ export function useCocofyStore() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [workers, setWorkers] = useState<UserProfile[]>([]);
 
-  const STORAGE_VERSION = 'cocofy_v6_clean';
+  const STORAGE_VERSION = 'cocofy_v9_worker_details';
 
   useEffect(() => {
     const savedJobs = localStorage.getItem(`${STORAGE_VERSION}_jobs`);
@@ -45,17 +45,19 @@ export function useCocofyStore() {
     }
   };
 
-  const signup = (name: string, email: string, role: Role) => {
+  const signup = (userData: Partial<UserProfile>) => {
     const newUser: UserProfile = {
       id: `u${Date.now()}`,
-      name,
-      email,
-      role,
+      name: userData.name || 'New User',
+      email: userData.email || '',
+      role: userData.role || 'worker',
+      phone: userData.phone,
+      dob: userData.dob,
       skills: [],
       availability: 'Available'
     };
     
-    if (role === 'worker') {
+    if (newUser.role === 'worker') {
       setWorkers(prev => [...prev, newUser]);
     }
     

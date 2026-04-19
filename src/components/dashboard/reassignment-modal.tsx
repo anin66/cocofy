@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Job, UserProfile } from '@/lib/types';
-import { UserPlus, Check, Users } from 'lucide-react';
+import { UserPlus, Check, Users, Phone, Calendar, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ReassignmentModalProps {
@@ -40,12 +40,12 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
       <DialogContent className="sm:max-w-[500px] glass border-white/10 p-0 overflow-hidden">
         <div className="p-6 pb-0">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline flex items-center gap-2">
+            <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-white">
               <UserPlus className="w-6 h-6 text-primary" />
               Assign Worker
             </DialogTitle>
             <DialogDescription className="text-muted-foreground pt-1">
-              Select a worker for <span className="text-foreground font-medium">{job?.customerName}</span> in <span className="text-foreground font-medium">{job?.location}</span>.
+              Select a worker for <span className="text-foreground font-medium text-white">{job?.customerName}</span> in <span className="text-foreground font-medium text-white">{job?.location}</span>.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -57,33 +57,51 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
               Available Workers ({availableWorkers.length})
             </div>
             
-            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
               {availableWorkers.length > 0 ? (
                 availableWorkers.map(w => (
                   <button
                     key={w.id}
                     onClick={() => setSelectedWorkerId(w.id)}
                     className={cn(
-                      "flex items-center justify-between p-4 rounded-xl border text-sm transition-all group",
+                      "flex flex-col p-4 rounded-xl border text-sm transition-all group relative",
                       selectedWorkerId === w.id 
                         ? "bg-primary/10 border-primary shadow-[0_0_15px_rgba(235,118,25,0.1)]" 
                         : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                     )}
                   >
-                    <div className="flex flex-col items-start gap-1">
-                      <span className={cn(
-                        "font-semibold transition-colors",
-                        selectedWorkerId === w.id ? "text-primary" : "text-foreground group-hover:text-primary"
-                      )}>
-                        {w.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{w.email}</span>
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <div className="flex flex-col items-start">
+                        <span className={cn(
+                          "text-lg font-bold transition-colors",
+                          selectedWorkerId === w.id ? "text-primary" : "text-white group-hover:text-primary"
+                        )}>
+                          {w.name}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                           <Mail className="w-3 h-3" />
+                           {w.email}
+                        </div>
+                      </div>
+                      {selectedWorkerId === w.id && <Check className="w-5 h-5 text-primary animate-in zoom-in" />}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-[10px] bg-white/5 border-white/10">
-                        {w.availability}
-                      </Badge>
-                      {selectedWorkerId === w.id && <Check className="w-4 h-4 text-primary animate-in zoom-in" />}
+
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="w-3 h-3 text-primary" />
+                          <span className="text-foreground">{w.phone || 'No phone'}</span>
+                       </div>
+                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3 text-primary" />
+                          <span>DOB: <span className="text-foreground">{w.dob || 'N/A'}</span></span>
+                       </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-white/5 w-full flex justify-between items-center">
+                       <Badge variant="outline" className="text-[10px] bg-white/5 border-white/10 h-5">
+                          {w.availability}
+                       </Badge>
+                       <span className="text-[10px] text-muted-foreground italic">Ready to harvest</span>
                     </div>
                   </button>
                 ))
@@ -97,7 +115,7 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
         </div>
 
         <DialogFooter className="p-6 bg-white/5 border-t border-white/5 flex gap-2">
-          <Button variant="ghost" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button variant="ghost" onClick={onClose} className="flex-1 text-white">Cancel</Button>
           <Button 
             onClick={handleAssign} 
             disabled={!selectedWorkerId}

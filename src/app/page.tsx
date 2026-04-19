@@ -9,9 +9,10 @@ import { ReassignmentModal } from '@/components/dashboard/reassignment-modal';
 import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sprout, Briefcase, Plus, Users, Search, Filter } from 'lucide-react';
+import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 export default function Home() {
   const store = useCocofyStore();
@@ -19,60 +20,41 @@ export default function Home() {
   const [reassigningJob, setReassigningJob] = useState<Job | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [signupData, setSignupData] = useState({ name: '', email: '', role: 'worker' as Role });
+  const [signupData, setSignupData] = useState({ 
+    name: '', 
+    email: '', 
+    role: 'worker' as Role,
+    phone: '',
+    dob: '',
+    password: ''
+  });
 
   if (!store.currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 bg-background/90 backdrop-blur-sm"></div>
-        <div className="w-full max-w-[420px] relative z-10 animate-fade-in">
+        <div className="w-full max-w-[480px] relative z-10 animate-fade-in">
           <div className="flex flex-col items-center text-center mb-10">
             <div className="w-16 h-16 rounded-2xl orange-gradient flex items-center justify-center text-white mb-4 shadow-2xl shadow-primary/20">
               <Sprout className="w-10 h-10" />
             </div>
-            <h1 className="text-4xl font-headline font-bold tracking-tight mb-2">Cocofy</h1>
+            <h1 className="text-4xl font-headline font-bold tracking-tight mb-2 text-white">Cocofy</h1>
             <p className="text-muted-foreground">The future of coconut harvest management</p>
           </div>
 
           <div className="glass border border-white/10 p-8 rounded-3xl space-y-6 shadow-2xl">
             <div className="space-y-2">
-              <h2 className="text-xl font-headline font-semibold">
+              <h2 className="text-2xl font-headline font-semibold text-white text-center">
                 {authMode === 'login' ? 'Welcome Back' : 'Join the Team'}
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-center">
                 {authMode === 'login' ? 'Sign in to manage your assignments' : 'Create your account to get started'}
               </p>
             </div>
 
             <div className="space-y-4">
               {authMode === 'signup' && (
-                <div className="space-y-1">
-                  <Input 
-                    type="text" 
-                    placeholder="Full Name" 
-                    value={signupData.name}
-                    onChange={e => setSignupData({ ...signupData, name: e.target.value })}
-                    className="bg-white/5 border-white/10 py-6"
-                  />
-                </div>
-              )}
-              <div className="space-y-1">
-                <Input 
-                  type="email" 
-                  placeholder="Email address" 
-                  className="bg-white/5 border-white/10 py-6"
-                />
-              </div>
-              <div className="space-y-1">
-                <Input 
-                  type="password" 
-                  placeholder="Password" 
-                  className="bg-white/5 border-white/10 py-6"
-                />
-              </div>
-
-              {authMode === 'signup' && (
-                <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
+                <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 mb-4">
                   <button 
                     onClick={() => setSignupData({ ...signupData, role: 'worker' })}
                     className={cn(
@@ -93,21 +75,96 @@ export default function Home() {
                   </button>
                 </div>
               )}
+
+              <div className="grid grid-cols-1 gap-4">
+                {authMode === 'signup' && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Full Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="e.g. John Doe" 
+                        value={signupData.name}
+                        onChange={e => setSignupData({ ...signupData, name: e.target.value })}
+                        className="bg-white/5 border-white/10 pl-10"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      type="email" 
+                      placeholder="email@example.com" 
+                      value={signupData.email}
+                      onChange={e => setSignupData({ ...signupData, email: e.target.value })}
+                      className="bg-white/5 border-white/10 pl-10"
+                    />
+                  </div>
+                </div>
+
+                {authMode === 'signup' && signupData.role === 'worker' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          type="tel" 
+                          placeholder="+1 (555) 000-0000" 
+                          value={signupData.phone}
+                          onChange={e => setSignupData({ ...signupData, phone: e.target.value })}
+                          className="bg-white/5 border-white/10 pl-10"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Date of Birth</Label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          type="date" 
+                          value={signupData.dob}
+                          onChange={e => setSignupData({ ...signupData, dob: e.target.value })}
+                          className="bg-white/5 border-white/10 pl-10 text-white"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      type="password" 
+                      placeholder="••••••••" 
+                      value={signupData.password}
+                      onChange={e => setSignupData({ ...signupData, password: e.target.value })}
+                      className="bg-white/5 border-white/10 pl-10"
+                    />
+                  </div>
+                </div>
+              </div>
               
-              <div className="flex flex-col gap-3 pt-2">
+              <div className="flex flex-col gap-3 pt-4">
                 {authMode === 'login' ? (
                   <>
                     <div className="flex gap-3">
                       <Button 
                         onClick={() => store.login('manager')} 
-                        className="flex-1 orange-gradient py-6 font-semibold"
+                        className="flex-1 orange-gradient font-semibold h-12"
                       >
                         Manager Login
                       </Button>
                       <Button 
                         onClick={() => store.login('worker')} 
                         variant="outline"
-                        className="flex-1 border-white/10 bg-white/5 py-6 font-semibold hover:bg-white/10"
+                        className="flex-1 border-white/10 bg-white/5 font-semibold h-12 hover:bg-white/10 text-white"
                       >
                         Worker Login
                       </Button>
@@ -123,8 +180,8 @@ export default function Home() {
                 ) : (
                   <>
                     <Button 
-                      onClick={() => store.signup(signupData.name || 'New User', 'user@example.com', signupData.role)} 
-                      className="w-full orange-gradient py-6 font-semibold"
+                      onClick={() => store.signup(signupData)} 
+                      className="w-full orange-gradient font-semibold h-12"
                     >
                       Create Account
                     </Button>
@@ -140,9 +197,9 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="pt-4 text-center">
-              <p className="text-xs text-muted-foreground">
-                By using Cocofy, you agree to our Terms of Service.
+            <div className="pt-2 text-center">
+              <p className="text-[10px] text-muted-foreground">
+                By signing up, you agree to our Terms of Service and Privacy Policy.
               </p>
             </div>
           </div>
@@ -173,7 +230,7 @@ export default function Home() {
               <div key={i} className="glass-card p-6 rounded-2xl flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-                  <p className="text-3xl font-headline font-bold mt-1">{stat.value}</p>
+                  <p className="text-3xl font-headline font-bold mt-1 text-white">{stat.value}</p>
                 </div>
                 <div className={cn("p-3 rounded-xl bg-white/5", stat.color)}>
                   <stat.icon className="w-6 h-6" />
@@ -183,7 +240,7 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-2xl font-headline font-bold">Manage Jobs</h2>
+            <h2 className="text-2xl font-headline font-bold text-white">Manage Jobs</h2>
             <div className="flex items-center gap-2">
               <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -265,7 +322,7 @@ export default function Home() {
           <div className="glass-card p-8 rounded-3xl orange-gradient text-white flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
              <div className="relative z-10">
-               <h2 className="text-3xl font-headline font-bold mb-2">Hello, {store.currentUser.name}</h2>
+               <h2 className="text-3xl font-headline font-bold mb-2 text-white">Hello, {store.currentUser.name}</h2>
                <p className="text-white/80 max-w-md">You have {workerJobs.filter(j => j.status === 'pending').length} new assignments waiting for your review.</p>
              </div>
              <div className="flex gap-4 relative z-10">
@@ -281,7 +338,7 @@ export default function Home() {
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-xl font-headline font-bold">My Assignments</h3>
+            <h3 className="text-xl font-headline font-bold text-white">My Assignments</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {workerJobs.map(job => (
                 <JobCard 

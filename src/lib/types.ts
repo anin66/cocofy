@@ -7,6 +7,8 @@ export interface UserProfile {
   role: Role;
   skills: string[];
   availability: 'Available' | 'Unavailable' | 'Busy';
+  phone?: string;
+  dob?: string;
 }
 
 export type JobStatus = 'unconfirmed' | 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
