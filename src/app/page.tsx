@@ -1,3 +1,245 @@
+"use client";
+
+import React, { useState } from 'react';
+import { useCocofyStore } from '@/hooks/use-cocofy-store';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import { JobCard } from '@/components/dashboard/job-card';
+import { CreateJobModal } from '@/components/dashboard/create-job-modal';
+import { ReassignmentModal } from '@/components/dashboard/reassignment-modal';
+import { Job } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Sprout, Briefcase, Plus, Users, Search, Filter } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 export default function Home() {
-  return <></>;
+  const store = useCocofyStore();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [reassigningJob, setReassigningJob] = useState<Job | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  if (!store.currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-background/90 backdrop-blur-sm"></div>
+        <div className="w-full max-w-[420px] relative z-10 animate-fade-in">
+          <div className="flex flex-col items-center text-center mb-10">
+            <div className="w-16 h-16 rounded-2xl orange-gradient flex items-center justify-center text-white mb-4 shadow-2xl shadow-primary/20">
+              <Sprout className="w-10 h-10" />
+            </div>
+            <h1 className="text-4xl font-headline font-bold tracking-tight mb-2">Cocofy</h1>
+            <p className="text-muted-foreground">The future of coconut harvest management</p>
+          </div>
+
+          <div className="glass border border-white/10 p-8 rounded-3xl space-y-6 shadow-2xl">
+            <div className="space-y-2">
+              <h2 className="text-xl font-headline font-semibold">Welcome Back</h2>
+              <p className="text-sm text-muted-foreground">Sign in to manage your assignments</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Input 
+                  type="email" 
+                  placeholder="Email address" 
+                  defaultValue="manager@cocofy.com"
+                  className="bg-white/5 border-white/10 py-6"
+                />
+              </div>
+              <div className="space-y-1">
+                <Input 
+                  type="password" 
+                  placeholder="Password" 
+                  defaultValue="••••••••"
+                  className="bg-white/5 border-white/10 py-6"
+                />
+              </div>
+              
+              <div className="flex gap-4 pt-2">
+                <Button 
+                  onClick={() => store.login('manager')} 
+                  className="flex-1 orange-gradient py-6 font-semibold"
+                >
+                  Manager Login
+                </Button>
+                <Button 
+                  onClick={() => store.login('worker')} 
+                  variant="outline"
+                  className="flex-1 border-white/10 bg-white/5 py-6 font-semibold hover:bg-white/10"
+                >
+                  Worker Login
+                </Button>
+              </div>
+            </div>
+
+            <div className="pt-4 text-center">
+              <p className="text-xs text-muted-foreground">
+                By signing in, you agree to our Terms of Service.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredJobs = store.jobs.filter(j => 
+    j.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    j.location.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const activeJobs = filteredJobs.filter(j => j.status !== 'completed' && j.status !== 'rejected');
+  const workerJobs = store.jobs.filter(j => j.assignedWorkerId === store.currentUser?.id);
+
+  return (
+    <DashboardLayout user={store.currentUser} onLogout={store.logout}>
+      {store.currentUser.role === 'manager' ? (
+        <div className="space-y-8 animate-fade-in">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Jobs', value: store.jobs.length, icon: Briefcase, color: 'text-primary' },
+              { label: 'Active Tasks', value: activeJobs.length, icon: Sprout, color: 'text-green-500' },
+              { label: 'Pending Response', value: store.jobs.filter(j => j.status === 'pending').length, icon: Search, color: 'text-yellow-500' },
+              { label: 'Total Workers', value: store.workers.length, icon: Users, color: 'text-blue-500' },
+            ].map((stat, i) => (
+              <div key={i} className="glass-card p-6 rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
+                  <p className="text-3xl font-headline font-bold mt-1">{stat.value}</p>
+                </div>
+                <div className={cn("p-3 rounded-xl bg-white/5", stat.color)}>
+                  <stat.icon className="w-6 h-6" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h2 className="text-2xl font-headline font-bold">Manage Jobs</h2>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search jobs..." 
+                  className="pl-10 bg-white/5 border-white/10"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button variant="outline" size="icon" className="border-white/10 bg-white/5">
+                <Filter className="w-4 h-4" />
+              </Button>
+              <Button 
+                onClick={() => setShowCreateModal(true)}
+                className="orange-gradient"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Job
+              </Button>
+            </div>
+          </div>
+
+          <Tabs defaultValue="all" className="space-y-6">
+            <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
+              <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-primary">All Jobs</TabsTrigger>
+              <TabsTrigger value="pending" className="rounded-lg data-[state=active]:bg-primary">Pending</TabsTrigger>
+              <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-primary">Active</TabsTrigger>
+              <TabsTrigger value="rejected" className="rounded-lg data-[state=active]:bg-accent">Action Required</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="all" className="mt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredJobs.map(job => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    role="manager" 
+                    workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
+                    onStatusUpdate={store.updateJobStatus}
+                    onReassign={() => setReassigningJob(job)}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="rejected">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredJobs.filter(j => j.status === 'rejected').map(job => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    role="manager" 
+                    workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
+                    onStatusUpdate={store.updateJobStatus}
+                    onReassign={() => setReassigningJob(job)}
+                  />
+                ))}
+                {filteredJobs.filter(j => j.status === 'rejected').length === 0 && (
+                  <div className="col-span-full py-12 text-center glass-card rounded-2xl border-dashed border-white/10">
+                    <p className="text-muted-foreground">No rejected jobs requiring action.</p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      ) : (
+        <div className="space-y-6 animate-fade-in">
+          <div className="glass-card p-8 rounded-3xl orange-gradient text-white flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+             <div className="relative z-10">
+               <h2 className="text-3xl font-headline font-bold mb-2">Hello, {store.currentUser.name}</h2>
+               <p className="text-white/80 max-w-md">You have {workerJobs.filter(j => j.status === 'pending').length} new assignments waiting for your review.</p>
+             </div>
+             <div className="flex gap-4 relative z-10">
+               <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
+                 <p className="text-xs text-white/60 uppercase tracking-widest font-bold">New</p>
+                 <p className="text-2xl font-headline font-bold">{workerJobs.filter(j => j.status === 'pending').length}</p>
+               </div>
+               <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
+                 <p className="text-xs text-white/60 uppercase tracking-widest font-bold">Active</p>
+                 <p className="text-2xl font-headline font-bold">{workerJobs.filter(j => j.status === 'accepted' || j.status === 'confirmed').length}</p>
+               </div>
+             </div>
+          </div>
+
+          <div className="space-y-6">
+            <h3 className="text-xl font-headline font-bold">My Assignments</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {workerJobs.map(job => (
+                <JobCard 
+                  key={job.id} 
+                  job={job} 
+                  role="worker" 
+                  onStatusUpdate={store.updateJobStatus}
+                />
+              ))}
+              {workerJobs.length === 0 && (
+                <div className="col-span-full py-20 text-center glass-card rounded-3xl">
+                   <Briefcase className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                   <p className="text-muted-foreground">No jobs assigned to you at the moment.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <CreateJobModal 
+        isOpen={showCreateModal} 
+        onClose={() => setShowCreateModal(false)}
+        workers={store.workers}
+        onAdd={store.addJob}
+      />
+
+      <ReassignmentModal 
+        job={reassigningJob}
+        workers={store.workers}
+        onClose={() => setReassigningJob(null)}
+        onAssign={store.reassignWorker}
+      />
+    </DashboardLayout>
+  );
 }

@@ -1,0 +1,30 @@
+export type Role = 'manager' | 'worker';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  skills: string[];
+  availability: 'Available' | 'Unavailable' | 'Busy';
+}
+
+export type JobStatus = 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
+
+export interface Job {
+  id: string;
+  customerName: string;
+  location: string;
+  scheduledDate: string;
+  requirements: string;
+  assignedWorkerId: string | null;
+  status: JobStatus;
+  createdAt: string;
+  notes?: string;
+}
+
+export interface WorkerSuggestion {
+  workerId: string;
+  name: string;
+  reason: string;
+}
