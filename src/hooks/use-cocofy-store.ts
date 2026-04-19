@@ -9,29 +9,39 @@ export function useCocofyStore() {
 
   // Persistence simulation with versioned keys to allow for data resets
   useEffect(() => {
-    const savedJobs = localStorage.getItem('cocofy_jobs_v2');
+    const savedJobs = localStorage.getItem('cocofy_jobs_v3');
     if (savedJobs) setJobs(JSON.parse(savedJobs));
     
-    const savedUser = localStorage.getItem('cocofy_user_v2');
+    const savedUser = localStorage.getItem('cocofy_user_v3');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
 
-    const savedWorkers = localStorage.getItem('cocofy_workers_v2');
+    const savedWorkers = localStorage.getItem('cocofy_workers_v3');
     if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('cocofy_jobs_v2', JSON.stringify(jobs));
+    localStorage.setItem('cocofy_jobs_v3', JSON.stringify(jobs));
   }, [jobs]);
 
   useEffect(() => {
-    localStorage.setItem('cocofy_workers_v2', JSON.stringify(workers));
+    localStorage.setItem('cocofy_workers_v3', JSON.stringify(workers));
   }, [workers]);
 
   const login = (role: 'manager' | 'worker') => {
+    // Check if we have a saved user that matches this role first
+    const savedUser = localStorage.getItem('cocofy_user_v3');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      if (parsed.role === role) {
+        setCurrentUser(parsed);
+        return;
+      }
+    }
+
     const user = role === 'manager' ? MOCK_MANAGER : (workers.length > 0 ? workers[0] : null);
     if (user) {
       setCurrentUser(user);
-      localStorage.setItem('cocofy_user_v2', JSON.stringify(user));
+      localStorage.setItem('cocofy_user_v3', JSON.stringify(user));
     }
   };
 
@@ -50,12 +60,12 @@ export function useCocofyStore() {
     }
     
     setCurrentUser(newUser);
-    localStorage.setItem('cocofy_user_v2', JSON.stringify(newUser));
+    localStorage.setItem('cocofy_user_v3', JSON.stringify(newUser));
   };
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('cocofy_user_v2');
+    localStorage.removeItem('cocofy_user_v3');
   };
 
   const addJob = (job: Omit<Job, 'id' | 'status' | 'createdAt'>) => {
