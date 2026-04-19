@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Briefcase, TreePalm, Phone } from 'lucide-react';
 
 interface CreateJobModalProps {
@@ -133,17 +132,6 @@ export function CreateJobModal({ isOpen, onClose, onAdd }: CreateJobModalProps) 
                   className="bg-white/5 border-white/10 focus:border-primary/50"
                   value={formData.treeCount}
                   onChange={e => setFormData({ ...formData, treeCount: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reqs">Job Description / Requirements</Label>
-                <Textarea 
-                  id="reqs" 
-                  placeholder="e.g. Requires tall ladder, specific tools, etc." 
-                  className="bg-white/5 border-white/10 focus:border-primary/50 min-h-[100px]"
-                  value={formData.requirements}
-                  onChange={e => setFormData({ ...formData, requirements: e.target.value })}
                 />
               </div>
             </div>
