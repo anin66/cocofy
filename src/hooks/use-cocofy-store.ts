@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
-import { MOCK_WORKERS, MOCK_MANAGER } from '@/lib/mock-data';
+import { MOCK_MANAGER } from '@/lib/mock-data';
 
 export function useCocofyStore() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [workers, setWorkers] = useState<UserProfile[]>([]);
 
-  const STORAGE_VERSION = 'cocofy_v4_reset';
+  const STORAGE_VERSION = 'cocofy_v6_clean';
 
   useEffect(() => {
     const savedJobs = localStorage.getItem(`${STORAGE_VERSION}_jobs`);
@@ -72,7 +72,7 @@ export function useCocofyStore() {
     const newJob: Job = {
       ...job,
       id: `j${Date.now()}`,
-      status: 'pending',
+      status: 'unconfirmed',
       createdAt: new Date().toISOString()
     };
     setJobs(prev => [newJob, ...prev]);

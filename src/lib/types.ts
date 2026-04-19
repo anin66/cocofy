@@ -9,7 +9,7 @@ export interface UserProfile {
   availability: 'Available' | 'Unavailable' | 'Busy';
 }
 
-export type JobStatus = 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
+export type JobStatus = 'unconfirmed' | 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
 
 export interface Job {
   id: string;
@@ -18,7 +18,6 @@ export interface Job {
   location: string;
   scheduledDate: string;
   treeCount: number;
-  requirements: string;
   assignedWorkerId: string | null;
   status: JobStatus;
   createdAt: string;

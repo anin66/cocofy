@@ -11,11 +11,13 @@ import {
   MoreVertical,
   User,
   TreePalm,
-  Phone
+  Phone,
+  FileText
 } from 'lucide-react';
 import { Job, JobStatus, Role } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/badge'; // Note: Re-using badge styling for some elements if needed, but actually Button was used. 
+import { Button as UIButton } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { 
@@ -35,6 +37,7 @@ interface JobCardProps {
 }
 
 const statusConfig = {
+  unconfirmed: { label: 'Unconfirmed', icon: FileText, color: 'bg-muted text-muted-foreground border-muted-foreground/20' },
   pending: { label: 'Pending', icon: Clock, color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
   accepted: { label: 'Accepted', icon: CheckCircle2, color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
   rejected: { label: 'Rejected', icon: XCircle, color: 'bg-accent/10 text-accent border-accent/20' },
@@ -57,17 +60,19 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+              <UIButton variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
                 <MoreVertical className="w-4 h-4" />
-              </Button>
+              </UIButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass border-white/10">
               <DropdownMenuItem className="text-sm">View Details</DropdownMenuItem>
               {role === 'manager' && (
                 <>
-                  <DropdownMenuItem className="text-sm" onClick={() => onReassign?.(job.id)}>
-                    {job.assignedWorkerId ? "Reassign Worker" : "Assign Worker"}
-                  </DropdownMenuItem>
+                  {job.status !== 'unconfirmed' && (
+                    <DropdownMenuItem className="text-sm" onClick={() => onReassign?.(job.id)}>
+                      {job.assignedWorkerId ? "Reassign Worker" : "Assign Worker"}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem className="text-sm text-accent" onClick={() => onDelete?.(job.id)}>
                     Cancel Job
                   </DropdownMenuItem>
@@ -112,7 +117,7 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
           </div>
         )}
 
-        {role === 'manager' && !job.assignedWorkerId && job.status === 'pending' && (
+        {role === 'manager' && job.status === 'pending' && !job.assignedWorkerId && (
           <div className="flex items-center gap-2 text-xs font-medium text-yellow-500 p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
             <AlertCircle className="w-3.5 h-3.5" />
             No worker assigned yet.
@@ -121,40 +126,58 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
       </CardContent>
 
       <CardFooter className="p-5 pt-0 gap-3">
+        {role === 'manager' && job.status === 'unconfirmed' && (
+          <UIButton 
+            className="w-full orange-gradient"
+            onClick={() => onStatusUpdate?.(job.id, 'pending')}
+          >
+            Confirm Order
+          </UIButton>
+        )}
+
+        {role === 'manager' && job.status === 'pending' && !job.assignedWorkerId && (
+          <UIButton 
+            className="w-full orange-gradient"
+            onClick={() => onReassign?.(job.id)}
+          >
+            Assign Worker
+          </UIButton>
+        )}
+
         {role === 'worker' && job.status === 'pending' && (
           <>
-            <Button 
+            <UIButton 
               className="flex-1 orange-gradient hover:opacity-90"
               onClick={() => onStatusUpdate?.(job.id, 'accepted')}
             >
               Accept
-            </Button>
-            <Button 
+            </UIButton>
+            <UIButton 
               variant="outline" 
               className="flex-1 border-accent/20 text-accent hover:bg-accent/10 hover:text-accent"
               onClick={() => onStatusUpdate?.(job.id, 'rejected')}
             >
               Reject
-            </Button>
+            </UIButton>
           </>
         )}
 
         {role === 'manager' && job.status === 'accepted' && (
-          <Button 
+          <UIButton 
             className="w-full bg-green-600 hover:bg-green-700 text-white"
             onClick={() => onStatusUpdate?.(job.id, 'confirmed')}
           >
             Confirm Ready
-          </Button>
+          </UIButton>
         )}
 
-        {role === 'manager' && (job.status === 'rejected' || (!job.assignedWorkerId && job.status === 'pending')) && (
-          <Button 
+        {role === 'manager' && job.status === 'rejected' && (
+          <UIButton 
             className="w-full orange-gradient"
             onClick={() => onReassign?.(job.id)}
           >
-            {job.assignedWorkerId ? "Find Alternative Worker" : "Assign Worker"}
-          </Button>
+            Find Alternative Worker
+          </UIButton>
         )}
       </CardFooter>
     </Card>
