@@ -113,10 +113,6 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign }: J
           )}
         </div>
 
-        <p className="text-sm text-muted-foreground line-clamp-2 bg-white/5 p-3 rounded-lg border border-white/5">
-          {job.requirements}
-        </p>
-
         {job.status === 'rejected' && role === 'manager' && (
           <div className="flex items-center gap-2 text-xs font-medium text-accent p-2 bg-accent/10 rounded-md border border-accent/20">
             <AlertCircle className="w-3.5 h-3.5" />
