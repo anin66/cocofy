@@ -6,17 +6,20 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { JobCard } from '@/components/dashboard/job-card';
 import { CreateJobModal } from '@/components/dashboard/create-job-modal';
 import { ReassignmentModal } from '@/components/dashboard/reassignment-modal';
-import { Job } from '@/lib/types';
+import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sprout, Briefcase, Plus, Users, Search, Filter } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const store = useCocofyStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [reassigningJob, setReassigningJob] = useState<Job | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [signupData, setSignupData] = useState({ name: '', email: '', role: 'worker' as Role });
 
   if (!store.currentUser) {
     return (
@@ -33,11 +36,26 @@ export default function Home() {
 
           <div className="glass border border-white/10 p-8 rounded-3xl space-y-6 shadow-2xl">
             <div className="space-y-2">
-              <h2 className="text-xl font-headline font-semibold">Welcome Back</h2>
-              <p className="text-sm text-muted-foreground">Sign in to manage your assignments</p>
+              <h2 className="text-xl font-headline font-semibold">
+                {authMode === 'login' ? 'Welcome Back' : 'Join the Team'}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {authMode === 'login' ? 'Sign in to manage your assignments' : 'Create your account to get started'}
+              </p>
             </div>
 
             <div className="space-y-4">
+              {authMode === 'signup' && (
+                <div className="space-y-1">
+                  <Input 
+                    type="text" 
+                    placeholder="Full Name" 
+                    value={signupData.name}
+                    onChange={e => setSignupData({ ...signupData, name: e.target.value })}
+                    className="bg-white/5 border-white/10 py-6"
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <Input 
                   type="email" 
@@ -54,27 +72,79 @@ export default function Home() {
                   className="bg-white/5 border-white/10 py-6"
                 />
               </div>
+
+              {authMode === 'signup' && (
+                <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
+                  <button 
+                    onClick={() => setSignupData({ ...signupData, role: 'worker' })}
+                    className={cn(
+                      "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                      signupData.role === 'worker' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    Worker
+                  </button>
+                  <button 
+                    onClick={() => setSignupData({ ...signupData, role: 'manager' })}
+                    className={cn(
+                      "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                      signupData.role === 'manager' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    Manager
+                  </button>
+                </div>
+              )}
               
-              <div className="flex gap-4 pt-2">
-                <Button 
-                  onClick={() => store.login('manager')} 
-                  className="flex-1 orange-gradient py-6 font-semibold"
-                >
-                  Manager Login
-                </Button>
-                <Button 
-                  onClick={() => store.login('worker')} 
-                  variant="outline"
-                  className="flex-1 border-white/10 bg-white/5 py-6 font-semibold hover:bg-white/10"
-                >
-                  Worker Login
-                </Button>
+              <div className="flex flex-col gap-3 pt-2">
+                {authMode === 'login' ? (
+                  <>
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={() => store.login('manager')} 
+                        className="flex-1 orange-gradient py-6 font-semibold"
+                      >
+                        Manager Login
+                      </Button>
+                      <Button 
+                        onClick={() => store.login('worker')} 
+                        variant="outline"
+                        className="flex-1 border-white/10 bg-white/5 py-6 font-semibold hover:bg-white/10"
+                      >
+                        Worker Login
+                      </Button>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setAuthMode('signup')}
+                      className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                    >
+                      Don't have an account? Sign Up
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      onClick={() => store.signup(signupData.name || 'New User', 'user@example.com', signupData.role)} 
+                      className="w-full orange-gradient py-6 font-semibold"
+                    >
+                      Create Account
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => setAuthMode('login')}
+                      className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                    >
+                      Already have an account? Sign In
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="pt-4 text-center">
               <p className="text-xs text-muted-foreground">
-                By signing in, you agree to our Terms of Service.
+                By using Cocofy, you agree to our Terms of Service.
               </p>
             </div>
           </div>
