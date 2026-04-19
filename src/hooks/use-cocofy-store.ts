@@ -6,8 +6,9 @@ export function useCocofyStore() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [workers, setWorkers] = useState<UserProfile[]>([]);
+  const [managers, setManagers] = useState<UserProfile[]>([MOCK_MANAGER]);
 
-  const STORAGE_VERSION = 'cocofy_v9_worker_details';
+  const STORAGE_VERSION = 'cocofy_v11_stable_persistence';
 
   useEffect(() => {
     const savedJobs = localStorage.getItem(`${STORAGE_VERSION}_jobs`);
@@ -18,6 +19,9 @@ export function useCocofyStore() {
 
     const savedWorkers = localStorage.getItem(`${STORAGE_VERSION}_workers`);
     if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
+
+    const savedManagers = localStorage.getItem(`${STORAGE_VERSION}_managers`);
+    if (savedManagers) setManagers(JSON.parse(savedManagers));
   }, []);
 
   useEffect(() => {
@@ -28,7 +32,12 @@ export function useCocofyStore() {
     localStorage.setItem(`${STORAGE_VERSION}_workers`, JSON.stringify(workers));
   }, [workers]);
 
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_VERSION}_managers`, JSON.stringify(managers));
+  }, [managers]);
+
   const login = (role: 'manager' | 'worker') => {
+    // If we have a specifically logged in user in storage, use them
     const savedUser = localStorage.getItem(`${STORAGE_VERSION}_user`);
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
@@ -38,7 +47,14 @@ export function useCocofyStore() {
       }
     }
 
-    const user = role === 'manager' ? MOCK_MANAGER : (workers.length > 0 ? workers[0] : null);
+    // Otherwise, try to find the last signed up user of that role or use mock
+    let user: UserProfile | null = null;
+    if (role === 'manager') {
+      user = managers[managers.length - 1] || MOCK_MANAGER;
+    } else {
+      user = workers[workers.length - 1] || null;
+    }
+
     if (user) {
       setCurrentUser(user);
       localStorage.setItem(`${STORAGE_VERSION}_user`, JSON.stringify(user));
@@ -59,6 +75,8 @@ export function useCocofyStore() {
     
     if (newUser.role === 'worker') {
       setWorkers(prev => [...prev, newUser]);
+    } else {
+      setManagers(prev => [...prev, newUser]);
     }
     
     setCurrentUser(newUser);
