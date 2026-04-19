@@ -3,8 +3,6 @@
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
-  Briefcase, 
-  Users, 
   LogOut, 
   Bell, 
   Menu, 
@@ -50,8 +48,6 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
   const navigation = user.role === 'manager' 
     ? [
         { icon: LayoutDashboard, label: 'Overview' },
-        { icon: Briefcase, label: 'Jobs' },
-        { icon: Users, label: 'Workers' },
       ]
     : [
         { icon: LayoutDashboard, label: 'My Jobs' },
