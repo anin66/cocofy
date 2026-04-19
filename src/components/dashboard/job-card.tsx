@@ -9,7 +9,8 @@ import {
   Clock, 
   AlertCircle,
   MoreVertical,
-  User
+  User,
+  TreePalm
 } from 'lucide-react';
 import { Job, JobStatus, Role } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -37,29 +38,8 @@ const statusConfig = {
   accepted: { label: 'Accepted', icon: CheckCircle2, color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
   rejected: { label: 'Rejected', icon: XCircle, color: 'bg-accent/10 text-accent border-accent/20' },
   confirmed: { label: 'Confirmed', icon: CheckCircle2, color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  completed: { label: 'Completed', icon: SproutIcon, color: 'bg-primary/10 text-primary border-primary/20' },
+  completed: { label: 'Completed', icon: TreePalm, color: 'bg-primary/10 text-primary border-primary/20' },
 };
-
-function SproutIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M7 20h10" />
-      <path d="M10 20c5.5-3 5.5-13 0-16" />
-      <path d="M14 20c-5.5-3-5.5-13 0-16" />
-    </svg>
-  );
-}
 
 export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onDelete }: JobCardProps) {
   const status = statusConfig[job.status] || statusConfig.pending;
@@ -85,7 +65,7 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
               {role === 'manager' && (
                 <>
                   <DropdownMenuItem className="text-sm" onClick={() => onReassign?.(job.id)}>
-                    Reassign Worker
+                    {job.assignedWorkerId ? "Reassign Worker" : "Assign Worker"}
                   </DropdownMenuItem>
                   <DropdownMenuItem className="text-sm text-accent" onClick={() => onDelete?.(job.id)}>
                     Cancel Job
@@ -108,6 +88,10 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
             <Calendar className="w-4 h-4 text-primary" />
             <span>{new Date(job.scheduledDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
           </div>
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <TreePalm className="w-4 h-4 text-primary" />
+            <span>Trees to harvest: <span className="text-foreground font-medium">{job.treeCount}</span></span>
+          </div>
           {workerName && (
              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
              <User className="w-4 h-4 text-primary" />
@@ -120,6 +104,13 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
           <div className="flex items-center gap-2 text-xs font-medium text-accent p-2 bg-accent/10 rounded-md border border-accent/20">
             <AlertCircle className="w-3.5 h-3.5" />
             Worker rejected this assignment. Needs reassignment.
+          </div>
+        )}
+
+        {role === 'manager' && !job.assignedWorkerId && job.status === 'pending' && (
+          <div className="flex items-center gap-2 text-xs font-medium text-yellow-500 p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
+            <AlertCircle className="w-3.5 h-3.5" />
+            No worker assigned yet.
           </div>
         )}
       </CardContent>
@@ -152,12 +143,12 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
           </Button>
         )}
 
-        {role === 'manager' && job.status === 'rejected' && (
+        {role === 'manager' && (job.status === 'rejected' || (!job.assignedWorkerId && job.status === 'pending')) && (
           <Button 
             className="w-full orange-gradient"
             onClick={() => onReassign?.(job.id)}
           >
-            Find Alternative Worker
+            {job.assignedWorkerId ? "Find Alternative Worker" : "Assign Worker"}
           </Button>
         )}
       </CardFooter>

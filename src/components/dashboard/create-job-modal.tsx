@@ -13,37 +13,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { UserProfile } from '@/lib/types';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, TreePalm } from 'lucide-react';
 
 interface CreateJobModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workers: UserProfile[];
   onAdd: (job: any) => void;
 }
 
-export function CreateJobModal({ isOpen, onClose, workers, onAdd }: CreateJobModalProps) {
+export function CreateJobModal({ isOpen, onClose, onAdd }: CreateJobModalProps) {
   const [formData, setFormData] = React.useState({
     customerName: '',
     location: '',
     scheduledDate: '',
+    treeCount: '1',
     requirements: '',
-    assignedWorkerId: ''
+    assignedWorkerId: null
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAdd(formData);
+    onAdd({
+      ...formData,
+      treeCount: parseInt(formData.treeCount) || 1
+    });
     onClose();
-    setFormData({ customerName: '', location: '', scheduledDate: '', requirements: '', assignedWorkerId: '' });
+    setFormData({ customerName: '', location: '', scheduledDate: '', treeCount: '1', requirements: '', assignedWorkerId: null });
   };
 
   return (
@@ -57,7 +52,7 @@ export function CreateJobModal({ isOpen, onClose, workers, onAdd }: CreateJobMod
                 Create New Job
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Assign a new coconut harvesting task to a team member.
+                Set up a new coconut harvesting task. Worker assignment can be done after confirmation.
               </DialogDescription>
             </DialogHeader>
 
@@ -87,7 +82,7 @@ export function CreateJobModal({ isOpen, onClose, workers, onAdd }: CreateJobMod
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date">Scheduled Date</Label>
                   <Input 
                     id="date" 
                     type="date" 
@@ -100,29 +95,26 @@ export function CreateJobModal({ isOpen, onClose, workers, onAdd }: CreateJobMod
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="worker">Initial Assignment</Label>
-                <Select 
-                  onValueChange={val => setFormData({ ...formData, assignedWorkerId: val })}
-                  value={formData.assignedWorkerId}
-                >
-                  <SelectTrigger className="bg-white/5 border-white/10">
-                    <SelectValue placeholder="Select a worker" />
-                  </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
-                    {workers.map(w => (
-                      <SelectItem key={w.id} value={w.id}>
-                        {w.name} ({w.availability})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="treeCount" className="flex items-center gap-2">
+                  <TreePalm className="w-4 h-4 text-primary" />
+                  Number of Trees
+                </Label>
+                <Input 
+                  id="treeCount" 
+                  type="number" 
+                  min="1"
+                  required 
+                  className="bg-white/5 border-white/10 focus:border-primary/50"
+                  value={formData.treeCount}
+                  onChange={e => setFormData({ ...formData, treeCount: e.target.value })}
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="reqs">Special Requirements</Label>
+                <Label htmlFor="reqs">Job Description / Requirements</Label>
                 <Textarea 
                   id="reqs" 
-                  placeholder="Tools needed, height of trees, etc." 
+                  placeholder="e.g. Requires tall ladder, specific tools, etc." 
                   className="bg-white/5 border-white/10 focus:border-primary/50 min-h-[100px]"
                   value={formData.requirements}
                   onChange={e => setFormData({ ...formData, requirements: e.target.value })}

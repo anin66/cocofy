@@ -60,7 +60,6 @@ export default function Home() {
                 <Input 
                   type="email" 
                   placeholder="Email address" 
-                  defaultValue="manager@cocofy.com"
                   className="bg-white/5 border-white/10 py-6"
                 />
               </div>
@@ -68,7 +67,6 @@ export default function Home() {
                 <Input 
                   type="password" 
                   placeholder="Password" 
-                  defaultValue="••••••••"
                   className="bg-white/5 border-white/10 py-6"
                 />
               </div>
@@ -165,12 +163,11 @@ export default function Home() {
     <DashboardLayout user={store.currentUser} onLogout={store.logout}>
       {store.currentUser.role === 'manager' ? (
         <div className="space-y-8 animate-fade-in">
-          {/* Stats Overview */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Total Jobs', value: store.jobs.length, icon: Briefcase, color: 'text-primary' },
               { label: 'Active Tasks', value: activeJobs.length, icon: Sprout, color: 'text-green-500' },
-              { label: 'Pending Response', value: store.jobs.filter(j => j.status === 'pending').length, icon: Search, color: 'text-yellow-500' },
+              { label: 'Unassigned', value: store.jobs.filter(j => !j.assignedWorkerId).length, icon: Users, color: 'text-yellow-500' },
               { label: 'Total Workers', value: store.workers.length, icon: Users, color: 'text-blue-500' },
             ].map((stat, i) => (
               <div key={i} className="glass-card p-6 rounded-2xl flex items-center justify-between">
@@ -197,9 +194,6 @@ export default function Home() {
                   onChange={e => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button variant="outline" size="icon" className="border-white/10 bg-white/5">
-                <Filter className="w-4 h-4" />
-              </Button>
               <Button 
                 onClick={() => setShowCreateModal(true)}
                 className="orange-gradient"
@@ -213,14 +207,29 @@ export default function Home() {
           <Tabs defaultValue="all" className="space-y-6">
             <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
               <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-primary">All Jobs</TabsTrigger>
-              <TabsTrigger value="pending" className="rounded-lg data-[state=active]:bg-primary">Pending</TabsTrigger>
-              <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-primary">Active</TabsTrigger>
+              <TabsTrigger value="unassigned" className="rounded-lg data-[state=active]:bg-primary">Unassigned</TabsTrigger>
               <TabsTrigger value="rejected" className="rounded-lg data-[state=active]:bg-accent">Action Required</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="mt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredJobs.map(job => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    role="manager" 
+                    workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
+                    onStatusUpdate={store.updateJobStatus}
+                    onReassign={() => setReassigningJob(job)}
+                    onDelete={store.deleteJob}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="unassigned">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredJobs.filter(j => !j.assignedWorkerId).map(job => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
@@ -247,11 +256,6 @@ export default function Home() {
                     onDelete={store.deleteJob}
                   />
                 ))}
-                {filteredJobs.filter(j => j.status === 'rejected').length === 0 && (
-                  <div className="col-span-full py-12 text-center glass-card rounded-2xl border-dashed border-white/10">
-                    <p className="text-muted-foreground">No rejected jobs requiring action.</p>
-                  </div>
-                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -298,11 +302,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* Modals */}
       <CreateJobModal 
         isOpen={showCreateModal} 
         onClose={() => setShowCreateModal(false)}
-        workers={store.workers}
         onAdd={store.addJob}
       />
 

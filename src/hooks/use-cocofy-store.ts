@@ -1,35 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
-import { INITIAL_JOBS, MOCK_WORKERS, MOCK_MANAGER } from '@/lib/mock-data';
+import { MOCK_WORKERS, MOCK_MANAGER } from '@/lib/mock-data';
 
 export function useCocofyStore() {
-  const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [workers, setWorkers] = useState<UserProfile[]>(MOCK_WORKERS);
+  const [workers, setWorkers] = useState<UserProfile[]>([]);
 
-  // Persistence simulation with versioned keys to allow for data resets
+  const STORAGE_VERSION = 'cocofy_v4_reset';
+
   useEffect(() => {
-    const savedJobs = localStorage.getItem('cocofy_jobs_v3');
+    const savedJobs = localStorage.getItem(`${STORAGE_VERSION}_jobs`);
     if (savedJobs) setJobs(JSON.parse(savedJobs));
     
-    const savedUser = localStorage.getItem('cocofy_user_v3');
+    const savedUser = localStorage.getItem(`${STORAGE_VERSION}_user`);
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
 
-    const savedWorkers = localStorage.getItem('cocofy_workers_v3');
+    const savedWorkers = localStorage.getItem(`${STORAGE_VERSION}_workers`);
     if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('cocofy_jobs_v3', JSON.stringify(jobs));
+    localStorage.setItem(`${STORAGE_VERSION}_jobs`, JSON.stringify(jobs));
   }, [jobs]);
 
   useEffect(() => {
-    localStorage.setItem('cocofy_workers_v3', JSON.stringify(workers));
+    localStorage.setItem(`${STORAGE_VERSION}_workers`, JSON.stringify(workers));
   }, [workers]);
 
   const login = (role: 'manager' | 'worker') => {
-    // Check if we have a saved user that matches this role first
-    const savedUser = localStorage.getItem('cocofy_user_v3');
+    const savedUser = localStorage.getItem(`${STORAGE_VERSION}_user`);
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
       if (parsed.role === role) {
@@ -41,7 +41,7 @@ export function useCocofyStore() {
     const user = role === 'manager' ? MOCK_MANAGER : (workers.length > 0 ? workers[0] : null);
     if (user) {
       setCurrentUser(user);
-      localStorage.setItem('cocofy_user_v3', JSON.stringify(user));
+      localStorage.setItem(`${STORAGE_VERSION}_user`, JSON.stringify(user));
     }
   };
 
@@ -51,7 +51,7 @@ export function useCocofyStore() {
       name,
       email,
       role,
-      skills: role === 'worker' ? ['New Harvest Member'] : [],
+      skills: [],
       availability: 'Available'
     };
     
@@ -60,12 +60,12 @@ export function useCocofyStore() {
     }
     
     setCurrentUser(newUser);
-    localStorage.setItem('cocofy_user_v3', JSON.stringify(newUser));
+    localStorage.setItem(`${STORAGE_VERSION}_user`, JSON.stringify(newUser));
   };
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('cocofy_user_v3');
+    localStorage.removeItem(`${STORAGE_VERSION}_user`);
   };
 
   const addJob = (job: Omit<Job, 'id' | 'status' | 'createdAt'>) => {

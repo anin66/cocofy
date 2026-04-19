@@ -16,6 +16,7 @@ export interface Job {
   customerName: string;
   location: string;
   scheduledDate: string;
+  treeCount: number;
   requirements: string;
   assignedWorkerId: string | null;
   status: JobStatus;
