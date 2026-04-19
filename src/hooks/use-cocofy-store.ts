@@ -74,6 +74,10 @@ export function useCocofyStore() {
     setJobs(prev => prev.map(j => j.id === jobId ? { ...j, assignedWorkerId: workerId, status: 'pending' } : j));
   };
 
+  const deleteJob = (jobId: string) => {
+    setJobs(prev => prev.filter(j => j.id !== jobId));
+  };
+
   return {
     jobs,
     currentUser,
@@ -83,6 +87,7 @@ export function useCocofyStore() {
     addJob,
     updateJobStatus,
     reassignWorker,
-    signup
+    signup,
+    deleteJob
   };
 }

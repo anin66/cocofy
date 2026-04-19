@@ -228,6 +228,7 @@ export default function Home() {
                     workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
+                    onDelete={store.deleteJob}
                   />
                 ))}
               </div>
@@ -243,6 +244,7 @@ export default function Home() {
                     workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
+                    onDelete={store.deleteJob}
                   />
                 ))}
                 {filteredJobs.filter(j => j.status === 'rejected').length === 0 && (

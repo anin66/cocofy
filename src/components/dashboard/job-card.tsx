@@ -29,6 +29,7 @@ interface JobCardProps {
   workerName?: string;
   onStatusUpdate?: (id: string, status: JobStatus) => void;
   onReassign?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 const statusConfig = {
@@ -60,7 +61,7 @@ function SproutIcon(props: any) {
   );
 }
 
-export function JobCard({ job, role, workerName, onStatusUpdate, onReassign }: JobCardProps) {
+export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onDelete }: JobCardProps) {
   const status = statusConfig[job.status] || statusConfig.pending;
   const StatusIcon = status.icon;
 
@@ -86,7 +87,9 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign }: J
                   <DropdownMenuItem className="text-sm" onClick={() => onReassign?.(job.id)}>
                     Reassign Worker
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-sm text-accent">Cancel Job</DropdownMenuItem>
+                  <DropdownMenuItem className="text-sm text-accent" onClick={() => onDelete?.(job.id)}>
+                    Cancel Job
+                  </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
