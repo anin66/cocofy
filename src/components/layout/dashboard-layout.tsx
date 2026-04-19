@@ -82,7 +82,7 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
               <AvatarFallback>{user.name[0]}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-semibold truncate">{user.name}</span>
+              <span className="text-sm font-semibold truncate text-white">{user.name}</span>
               <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
             </div>
           </div>

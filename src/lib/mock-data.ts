@@ -4,7 +4,7 @@ export const MOCK_WORKERS: UserProfile[] = [];
 
 export const MOCK_MANAGER: UserProfile = {
   id: 'm1',
-  name: 'Manager',
+  name: 'Guest Manager',
   email: 'manager@cocofy.com',
   role: 'manager',
   skills: [],
