@@ -1,123 +1,117 @@
 import { useState, useEffect } from 'react';
 import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
-import { MOCK_MANAGER } from '@/lib/mock-data';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut 
+} from 'firebase/auth';
+import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export function useCocofyStore() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [workers, setWorkers] = useState<UserProfile[]>([]);
-  const [managers, setManagers] = useState<UserProfile[]>([MOCK_MANAGER]);
+  const { user: authUser, isUserLoading: isAuthLoading } = useUser();
+  const db = useFirestore();
+  const auth = getAuth();
 
-  const STORAGE_VERSION = 'cocofy_v12_stable_persistence';
+  // Firestore Queries
+  const jobsQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
+  }, [db]);
 
-  useEffect(() => {
-    const savedJobs = localStorage.getItem(`${STORAGE_VERSION}_jobs`);
-    if (savedJobs) setJobs(JSON.parse(savedJobs));
-    
-    const savedUser = localStorage.getItem(`${STORAGE_VERSION}_user`);
-    if (savedUser) setCurrentUser(JSON.parse(savedUser));
+  const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsQuery);
+  const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(
+    useMemoFirebase(() => db ? collection(db, 'users') : null, [db])
+  );
+  
+  const jobs = jobsData || [];
+  const allUsers = usersData || [];
+  const workers = allUsers.filter(u => u.role === 'worker');
+  const currentUser = allUsers.find(u => u.id === authUser?.uid) || null;
 
-    const savedWorkers = localStorage.getItem(`${STORAGE_VERSION}_workers`);
-    if (savedWorkers) setWorkers(JSON.parse(savedWorkers));
-
-    const savedManagers = localStorage.getItem(`${STORAGE_VERSION}_managers`);
-    if (savedManagers) setManagers(JSON.parse(savedManagers));
-  }, []);
-
-  useEffect(() => {
-    if (jobs.length > 0 || localStorage.getItem(`${STORAGE_VERSION}_jobs`)) {
-      localStorage.setItem(`${STORAGE_VERSION}_jobs`, JSON.stringify(jobs));
-    }
-  }, [jobs]);
-
-  useEffect(() => {
-    if (workers.length > 0 || localStorage.getItem(`${STORAGE_VERSION}_workers`)) {
-      localStorage.setItem(`${STORAGE_VERSION}_workers`, JSON.stringify(workers));
-    }
-  }, [workers]);
-
-  useEffect(() => {
-    if (managers.length > 0 || localStorage.getItem(`${STORAGE_VERSION}_managers`)) {
-      localStorage.setItem(`${STORAGE_VERSION}_managers`, JSON.stringify(managers));
-    }
-  }, [managers]);
-
-  const login = (role: Role, email?: string) => {
-    const list = role === 'worker' ? workers : managers;
-    let user: UserProfile | null = null;
-    
-    if (email) {
-      user = list.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
-    } 
-    
-    // Fallback if no email match or no email provided
-    if (!user) {
-      if (role === 'manager') {
-        user = managers.find(m => m.id === MOCK_MANAGER.id) || MOCK_MANAGER;
-      } else {
-        user = workers[workers.length - 1] || null;
-      }
-    }
-
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem(`${STORAGE_VERSION}_user`, JSON.stringify(user));
+  const login = async (role: Role, email?: string, password?: string) => {
+    if (!email || !password) return;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Login error:", error);
     }
   };
 
-  const signup = (userData: Partial<UserProfile>) => {
-    const newUser: UserProfile = {
-      id: `u${Date.now()}`,
-      name: userData.name || 'New User',
-      email: userData.email || '',
-      role: userData.role || 'worker',
-      phone: userData.phone,
-      dob: userData.dob,
-      skills: [],
-      availability: 'Available'
-    };
-    
-    if (newUser.role === 'worker') {
-      setWorkers(prev => [...prev, newUser]);
-    } else {
-      setManagers(prev => [...prev, newUser]);
+  const signup = async (userData: any) => {
+    if (!userData.email || !userData.password) return;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+      const newUser: UserProfile = {
+        id: userCredential.user.uid,
+        name: userData.name || 'New User',
+        email: userData.email,
+        role: userData.role || 'worker',
+        phone: userData.phone || '',
+        dob: userData.dob || '',
+        skills: [],
+        availability: 'Available'
+      };
+      
+      await setDoc(doc(db, 'users', newUser.id), newUser);
+    } catch (error) {
+      console.error("Signup error:", error);
     }
-    
-    setCurrentUser(newUser);
-    localStorage.setItem(`${STORAGE_VERSION}_user`, JSON.stringify(newUser));
   };
 
   const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem(`${STORAGE_VERSION}_user`);
+    signOut(auth);
   };
 
-  const addJob = (job: Omit<Job, 'id' | 'status' | 'createdAt'>) => {
-    const newJob: Job = {
-      ...job,
-      id: `j${Date.now()}`,
+  const addJob = (jobData: any) => {
+    if (!db || !currentUser) return;
+    
+    const newJobData = {
+      ...jobData,
+      managerId: currentUser.id,
       status: 'unconfirmed',
       createdAt: new Date().toISOString()
     };
-    setJobs(prev => [newJob, ...prev]);
+    
+    addDocumentNonBlocking(collection(db, 'jobs'), newJobData);
   };
 
   const updateJobStatus = (jobId: string, status: JobStatus) => {
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status } : j));
+    if (!db) return;
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
   };
 
   const reassignWorker = (jobId: string, workerId: string) => {
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, assignedWorkerId: workerId, status: 'pending' } : j));
+    if (!db) return;
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+      assignedWorkerId: workerId, 
+      status: 'pending' 
+    });
   };
 
   const deleteJob = (jobId: string) => {
-    setJobs(prev => prev.filter(j => j.id !== jobId));
+    if (!db) return;
+    deleteDocumentNonBlocking(doc(db, 'jobs', jobId));
   };
 
   return {
     jobs,
     currentUser,
     workers,
+    isUserLoading: isAuthLoading || isUsersLoading || isJobsLoading,
     login,
     logout,
     addJob,

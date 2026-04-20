@@ -9,7 +9,7 @@ import { ReassignmentModal } from '@/components/dashboard/reassignment-modal';
 import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User } from 'lucide-react';
+import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,14 @@ export default function Home() {
     dob: '',
     password: ''
   });
+
+  if (store.isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   if (!store.currentUser) {
     return (
@@ -154,7 +162,7 @@ export default function Home() {
                 {authMode === 'login' ? (
                   <>
                     <Button 
-                      onClick={() => store.login(authData.role, authData.email)} 
+                      onClick={() => store.login(authData.role, authData.email, authData.password)} 
                       className="w-full orange-gradient font-semibold h-12"
                     >
                       Sign In as {authData.role === 'manager' ? 'Manager' : 'Worker'}
