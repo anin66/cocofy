@@ -9,6 +9,7 @@ import {
   Menu, 
   X,
   Sprout,
+  Trophy,
   CloudCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,18 +44,27 @@ interface DashboardLayoutProps {
   user: UserProfile;
   onLogout: () => void;
   children: React.ReactNode;
+  activeView: string;
+  onNavigate: (view: string) => void;
 }
 
-export function DashboardLayout({ user, onLogout, children }: DashboardLayoutProps) {
+export function DashboardLayout({ user, onLogout, children, activeView, onNavigate }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navigation = user.role === 'manager' 
     ? [
-        { icon: LayoutDashboard, label: 'Overview' },
+        { id: 'dashboard', icon: LayoutDashboard, label: 'Overview' },
+        { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
       ]
     : [
-        { icon: LayoutDashboard, label: 'My Jobs' },
+        { id: 'dashboard', icon: LayoutDashboard, label: 'My Jobs' },
+        { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
       ];
+
+  const handleNavigate = (id: string) => {
+    onNavigate(id);
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -78,10 +88,11 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
         <nav className="flex-1 space-y-2">
           {navigation.map((item) => (
             <SidebarItem 
-              key={item.label} 
+              key={item.id} 
               icon={item.icon} 
               label={item.label} 
-              active={item.label === (user.role === 'manager' ? 'Overview' : 'My Jobs')}
+              active={activeView === item.id}
+              onClick={() => handleNavigate(item.id)}
             />
           ))}
         </nav>
@@ -119,7 +130,7 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
               {isMobileMenuOpen ? <X /> : <Menu />}
             </button>
             <h1 className="text-xl md:text-2xl font-headline font-bold">
-              {user.role === 'manager' ? 'Manager Dashboard' : 'Worker Portal'}
+              {activeView === 'leaderboard' ? 'Leaderboard' : (user.role === 'manager' ? 'Manager Dashboard' : 'Worker Portal')}
             </h1>
           </div>
           
@@ -163,11 +174,11 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
             <nav className="flex-1 space-y-2">
               {navigation.map((item) => (
                 <SidebarItem 
-                  key={item.label} 
+                  key={item.id} 
                   icon={item.icon} 
                   label={item.label} 
-                  active={item.label === (user.role === 'manager' ? 'Overview' : 'My Jobs')}
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  active={activeView === item.id}
+                  onClick={() => handleNavigate(item.id)}
                 />
               ))}
             </nav>
