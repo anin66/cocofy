@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -12,28 +12,49 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Job, UserProfile } from '@/lib/types';
-import { UserPlus, Check, Users, Phone, Calendar, Mail } from 'lucide-react';
+import { UserPlus, Check, Users, Phone, Calendar, Mail, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ReassignmentModalProps {
   job: Job | null;
   workers: UserProfile[];
   onClose: () => void;
-  onAssign: (jobId: string, workerId: string) => void;
+  onAssign: (jobId: string, workerIds: string[]) => void;
 }
 
 export function ReassignmentModal({ job, workers, onClose, onAssign }: ReassignmentModalProps) {
-  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (job) {
+      setSelectedWorkerIds(job.assignedWorkerIds || []);
+    } else {
+      setSelectedWorkerIds([]);
+    }
+  }, [job]);
 
   const handleAssign = () => {
-    if (job && selectedWorkerId) {
-      onAssign(job.id, selectedWorkerId);
+    if (job) {
+      onAssign(job.id, selectedWorkerIds);
       onClose();
-      setSelectedWorkerId(null);
     }
   };
 
-  const availableWorkers = workers.filter(w => w.id !== job?.assignedWorkerId);
+  const toggleWorker = (workerId: string) => {
+    setSelectedWorkerIds(prev => {
+      if (prev.includes(workerId)) {
+        return prev.filter(id => id !== workerId);
+      }
+      if (prev.length >= (job?.requiredWorkersCount || 1)) {
+        return prev;
+      }
+      return [...prev, workerId];
+    });
+  };
+
+  const requiredCount = job?.requiredWorkersCount || 1;
+  const isFull = selectedWorkerIds.length >= requiredCount;
 
   return (
     <Dialog open={!!job} onOpenChange={(open) => !open && onClose()}>
@@ -42,39 +63,62 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-white">
               <UserPlus className="w-6 h-6 text-primary" />
-              Assign Worker
+              Assign Team
             </DialogTitle>
             <DialogDescription className="text-muted-foreground pt-1">
-              Select a worker for <span className="text-foreground font-medium text-white">{job?.customerName}</span> in <span className="text-foreground font-medium text-white">{job?.location}</span>.
+              Select <span className="text-white font-bold">{requiredCount}</span> worker(s) for <span className="text-foreground font-medium text-white">{job?.customerName}</span>.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <Users className="w-4 h-4" />
-              Available Workers ({availableWorkers.length})
+              Available Workers
             </div>
-            
-            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-              {availableWorkers.length > 0 ? (
-                availableWorkers.map(w => (
+            <Badge variant="outline" className={cn(
+              "h-6",
+              isFull ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-primary/10 text-primary border-primary/20"
+            )}>
+              {selectedWorkerIds.length} / {requiredCount} Selected
+            </Badge>
+          </div>
+
+          {isFull && (
+            <Alert className="bg-primary/5 border-primary/20 py-2">
+              <Info className="w-4 h-4 text-primary" />
+              <AlertDescription className="text-xs text-muted-foreground">
+                You have selected the maximum number of workers required for this job.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+            {workers.length > 0 ? (
+              workers.map(w => {
+                const isSelected = selectedWorkerIds.includes(w.id);
+                const disabled = !isSelected && isFull;
+
+                return (
                   <button
                     key={w.id}
-                    onClick={() => setSelectedWorkerId(w.id)}
+                    disabled={disabled}
+                    onClick={() => toggleWorker(w.id)}
                     className={cn(
-                      "flex flex-col p-4 rounded-xl border text-sm transition-all group relative",
-                      selectedWorkerId === w.id 
+                      "flex flex-col p-4 rounded-xl border text-sm transition-all group relative text-left",
+                      isSelected 
                         ? "bg-primary/10 border-primary shadow-[0_0_15px_rgba(235,118,25,0.1)]" 
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                        : disabled 
+                          ? "opacity-40 grayscale cursor-not-allowed bg-white/5 border-white/10"
+                          : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                     )}
                   >
                     <div className="flex items-center justify-between w-full mb-3">
                       <div className="flex flex-col items-start">
                         <span className={cn(
                           "text-lg font-bold transition-colors",
-                          selectedWorkerId === w.id ? "text-primary" : "text-white group-hover:text-primary"
+                          isSelected ? "text-primary" : "text-white group-hover:text-primary"
                         )}>
                           {w.name}
                         </span>
@@ -83,7 +127,12 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
                            {w.email}
                         </div>
                       </div>
-                      {selectedWorkerId === w.id && <Check className="w-5 h-5 text-primary animate-in zoom-in" />}
+                      <div className={cn(
+                        "w-6 h-6 rounded-full border flex items-center justify-center transition-all",
+                        isSelected ? "bg-primary border-primary" : "border-white/20"
+                      )}>
+                        {isSelected && <Check className="w-4 h-4 text-white" />}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 w-full">
@@ -104,13 +153,13 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
                        <span className="text-[10px] text-muted-foreground italic">Ready to harvest</span>
                     </div>
                   </button>
-                ))
-              ) : (
-                <div className="py-10 text-center glass-card rounded-xl border-dashed">
-                  <p className="text-sm text-muted-foreground">No other workers registered yet.</p>
-                </div>
-              )}
-            </div>
+                );
+              })
+            ) : (
+              <div className="py-10 text-center glass-card rounded-xl border-dashed">
+                <p className="text-sm text-muted-foreground">No workers registered yet.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -118,10 +167,10 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
           <Button variant="ghost" onClick={onClose} className="flex-1 text-white">Cancel</Button>
           <Button 
             onClick={handleAssign} 
-            disabled={!selectedWorkerId}
+            disabled={selectedWorkerIds.length === 0}
             className="flex-1 orange-gradient"
           >
-            Confirm Assignment
+            Confirm Team ({selectedWorkerIds.length})
           </Button>
         </DialogFooter>
       </DialogContent>

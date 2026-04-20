@@ -15,7 +15,7 @@ import {
   FileText,
   Users
 } from 'lucide-react';
-import { Job, JobStatus, Role } from '@/lib/types';
+import { Job, JobStatus, Role, UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button as UIButton } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -30,7 +30,7 @@ import {
 interface JobCardProps {
   job: Job;
   role: Role;
-  workerName?: string;
+  assignedWorkers?: UserProfile[];
   onStatusUpdate?: (id: string, status: JobStatus) => void;
   onReassign?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -45,9 +45,11 @@ const statusConfig = {
   completed: { label: 'Completed', icon: TreePalm, color: 'bg-primary/10 text-primary border-primary/20' },
 };
 
-export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onDelete }: JobCardProps) {
+export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onReassign, onDelete }: JobCardProps) {
   const status = statusConfig[job.status] || statusConfig.pending;
   const StatusIcon = status.icon;
+  const hasAssignedWorkers = assignedWorkers.length > 0;
+  const isTeamComplete = assignedWorkers.length >= job.requiredWorkersCount;
 
   return (
     <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:translate-y-[-2px]">
@@ -69,7 +71,7 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
                 <>
                   {job.status !== 'unconfirmed' && (
                     <DropdownMenuItem className="text-sm text-white" onClick={() => onReassign?.(job.id)}>
-                      {job.assignedWorkerId ? "Reassign Worker" : "Assign Worker"}
+                      {hasAssignedWorkers ? "Modify Assignments" : "Assign Team"}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem className="text-sm text-accent" onClick={() => onDelete?.(job.id)}>
@@ -103,27 +105,35 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Users className="w-4 h-4 text-primary" />
-            <span className="text-white">Team Required: <span className="text-foreground font-medium text-white">{job.requiredWorkersCount}</span></span>
+            <span className="text-white">Team: <span className={cn("font-medium", isTeamComplete ? "text-green-400" : "text-yellow-400")}>{assignedWorkers.length} / {job.requiredWorkersCount}</span></span>
           </div>
-          {workerName && (
-             <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-             <User className="w-4 h-4 text-primary" />
-             <span className="text-white">Assigned to: <span className="text-foreground font-medium text-white">{workerName}</span></span>
-           </div>
+          
+          {hasAssignedWorkers && (
+             <div className="pt-2 space-y-1.5 border-t border-white/5">
+               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Assigned Personnel</p>
+               <div className="flex flex-wrap gap-1.5">
+                 {assignedWorkers.map(w => (
+                   <Badge key={w.id} variant="secondary" className="bg-white/5 border-white/10 text-white flex gap-1.5 items-center py-1">
+                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                     {w.name}
+                   </Badge>
+                 ))}
+               </div>
+             </div>
           )}
         </div>
 
         {job.status === 'rejected' && role === 'manager' && (
           <div className="flex items-center gap-2 text-xs font-medium text-accent p-2 bg-accent/10 rounded-md border border-accent/20">
             <AlertCircle className="w-3.5 h-3.5" />
-            Worker rejected this assignment. Needs reassignment.
+            A worker rejected assignment. Team incomplete.
           </div>
         )}
 
-        {role === 'manager' && job.status === 'pending' && !job.assignedWorkerId && (
+        {role === 'manager' && job.status === 'pending' && !isTeamComplete && (
           <div className="flex items-center gap-2 text-xs font-medium text-yellow-500 p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
             <AlertCircle className="w-3.5 h-3.5" />
-            No worker assigned yet.
+            Team not fully assigned.
           </div>
         )}
       </CardContent>
@@ -138,12 +148,12 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
           </UIButton>
         )}
 
-        {role === 'manager' && job.status === 'pending' && !job.assignedWorkerId && (
+        {role === 'manager' && job.status === 'pending' && !isTeamComplete && (
           <UIButton 
             className="w-full orange-gradient"
             onClick={() => onReassign?.(job.id)}
           >
-            Assign Worker
+            Fill Remaining Slots
           </UIButton>
         )}
 
@@ -179,7 +189,7 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
             className="w-full orange-gradient"
             onClick={() => onReassign?.(job.id)}
           >
-            Find Alternative Worker
+            Replace Worker
           </UIButton>
         )}
       </CardFooter>

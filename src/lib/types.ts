@@ -21,7 +21,7 @@ export interface Job {
   scheduledDate: string;
   treeCount: number;
   requiredWorkersCount: number;
-  assignedWorkerId: string | null;
+  assignedWorkerIds: string[];
   status: JobStatus;
   createdAt: string;
   notes?: string;

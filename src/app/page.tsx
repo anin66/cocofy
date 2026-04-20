@@ -231,7 +231,7 @@ export default function Home() {
   );
 
   const activeJobs = filteredJobs.filter(j => j.status !== 'completed' && j.status !== 'rejected');
-  const workerJobs = store.jobs.filter(j => j.assignedWorkerId === store.currentUser?.id);
+  const workerJobs = store.jobs.filter(j => j.assignedWorkerIds?.includes(store.currentUser?.id || ''));
 
   return (
     <DashboardLayout user={store.currentUser} onLogout={store.logout}>
@@ -241,7 +241,7 @@ export default function Home() {
             {[
               { label: 'Total Jobs', value: store.jobs.length, icon: Briefcase, color: 'text-primary' },
               { label: 'Active Tasks', value: activeJobs.length, icon: Sprout, color: 'text-green-500' },
-              { label: 'Unassigned', value: store.jobs.filter(j => !j.assignedWorkerId).length, icon: Users, color: 'text-yellow-500' },
+              { label: 'Unassigned', value: store.jobs.filter(j => (j.assignedWorkerIds?.length || 0) === 0).length, icon: Users, color: 'text-yellow-500' },
               { label: 'Total Workers', value: store.workers.length, icon: Users, color: 'text-blue-500' },
             ].map((stat, i) => (
               <div key={i} className="glass-card p-6 rounded-2xl flex items-center justify-between">
@@ -292,7 +292,7 @@ export default function Home() {
                     key={job.id} 
                     job={job} 
                     role="manager" 
-                    workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
+                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
                     onDelete={store.deleteJob}
@@ -303,12 +303,12 @@ export default function Home() {
 
             <TabsContent value="unassigned">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredJobs.filter(j => !j.assignedWorkerId).map(job => (
+                {filteredJobs.filter(j => (j.assignedWorkerIds?.length || 0) === 0).map(job => (
                   <JobCard 
                     key={job.id} 
                     job={job} 
                     role="manager" 
-                    workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
+                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
                     onDelete={store.deleteJob}
@@ -324,7 +324,7 @@ export default function Home() {
                     key={job.id} 
                     job={job} 
                     role="manager" 
-                    workerName={store.workers.find(w => w.id === job.assignedWorkerId)?.name}
+                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
                     onDelete={store.deleteJob}

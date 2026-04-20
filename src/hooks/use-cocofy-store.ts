@@ -147,6 +147,7 @@ export function useCocofyStore() {
       ...jobData,
       managerId: currentUser.id,
       status: 'unconfirmed',
+      assignedWorkerIds: [],
       createdAt: new Date().toISOString()
     };
     
@@ -166,16 +167,15 @@ export function useCocofyStore() {
     });
   };
 
-  const reassignWorker = (jobId: string, workerId: string) => {
+  const reassignWorker = (jobId: string, workerIds: string[]) => {
     if (!db) return;
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
-      assignedWorkerId: workerId, 
+      assignedWorkerIds: workerIds, 
       status: 'pending' 
     });
-    const worker = workers.find(w => w.id === workerId);
     toast({
-      title: "Worker Assigned",
-      description: worker ? `${worker.name} assigned and notified.` : "Assignment updated.",
+      title: "Workers Assigned",
+      description: `${workerIds.length} worker(s) assigned to this job.`,
     });
   };
 
