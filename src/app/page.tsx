@@ -366,6 +366,7 @@ export default function Home() {
                   job={job} 
                   role="worker" 
                   currentUserId={store.currentUser?.id}
+                  assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                   onStatusUpdate={store.updateJobStatus}
                 />
               ))}
