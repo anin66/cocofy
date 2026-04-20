@@ -20,9 +20,11 @@ import {
   signOut 
 } from 'firebase/auth';
 import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useToast } from '@/hooks/use-toast';
 
 export function useCocofyStore() {
   const { user: authUser, isUserLoading: isAuthLoading } = useUser();
+  const { toast } = useToast();
   const db = useFirestore();
   const auth = getAuth();
 
@@ -55,8 +57,26 @@ export function useCocofyStore() {
     if (!email || !password) return;
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
+      toast({
+        title: "Signed In",
+        description: `Welcome back to Cocofy!`,
+      });
+    } catch (error: any) {
       console.error("Login error:", error);
+      let message = "An error occurred during sign in.";
+      if (error.code === 'auth/invalid-credential') {
+        message = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.code === 'auth/user-not-found') {
+        message = "No account found with this email.";
+      } else if (error.code === 'auth/wrong-password') {
+        message = "Incorrect password.";
+      }
+      
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: message,
+      });
     }
   };
 
@@ -76,13 +96,34 @@ export function useCocofyStore() {
       };
       
       await setDoc(doc(db, 'users', newUser.id), newUser);
-    } catch (error) {
+      toast({
+        title: "Account Created",
+        description: `Welcome to the team, ${userData.name}!`,
+      });
+    } catch (error: any) {
       console.error("Signup error:", error);
+      let message = "An error occurred during sign up.";
+      if (error.code === 'auth/email-already-in-use') {
+        message = "This email is already registered. Try logging in instead.";
+      } else if (error.code === 'auth/weak-password') {
+        message = "The password is too weak. Please use at least 6 characters.";
+      }
+
+      toast({
+        variant: "destructive",
+        title: "Signup Failed",
+        description: message,
+      });
     }
   };
 
   const logout = () => {
-    signOut(auth);
+    signOut(auth).then(() => {
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+    });
   };
 
   const addJob = (jobData: any) => {
@@ -96,11 +137,19 @@ export function useCocofyStore() {
     };
     
     addDocumentNonBlocking(collection(db, 'jobs'), newJobData);
+    toast({
+      title: "Job Created",
+      description: `Job for ${jobData.customerName} has been added.`,
+    });
   };
 
   const updateJobStatus = (jobId: string, status: JobStatus) => {
     if (!db) return;
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
+    toast({
+      title: "Status Updated",
+      description: `Job status changed to ${status}.`,
+    });
   };
 
   const reassignWorker = (jobId: string, workerId: string) => {
@@ -109,11 +158,20 @@ export function useCocofyStore() {
       assignedWorkerId: workerId, 
       status: 'pending' 
     });
+    const worker = workers.find(w => w.id === workerId);
+    toast({
+      title: "Worker Assigned",
+      description: worker ? `${worker.name} has been assigned to the job.` : "Worker assigned successfully.",
+    });
   };
 
   const deleteJob = (jobId: string) => {
     if (!db) return;
     deleteDocumentNonBlocking(doc(db, 'jobs', jobId));
+    toast({
+      title: "Job Cancelled",
+      description: "The job has been removed from the schedule.",
+    });
   };
 
   return {
