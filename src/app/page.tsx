@@ -10,7 +10,7 @@ import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User, Loader2, Trophy } from 'lucide-react';
+import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User, Loader2, Trophy, Star } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
