@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -34,7 +33,7 @@ export function useCocofyStore() {
   }, [db, authUser]);
   const { data: currentUser, isLoading: isProfileLoading } = useDoc<UserProfile>(currentUserRef);
 
-  // Jobs Query - Fetching whole collection to avoid Firestore's implicit filtering of docs with missing fields
+  // Jobs Query
   const jobsCollection = useMemoFirebase(() => {
     if (!db || !authUser) return null;
     return collection(db, 'jobs');
@@ -48,7 +47,7 @@ export function useCocofyStore() {
   }, [db, authUser]);
   const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
   
-  // Local sorting for jobs to ensure no data is lost even if createdAt is missing
+  // Local sorting for jobs
   const jobs = (jobsData || []).sort((a, b) => {
     const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -75,13 +74,9 @@ export function useCocofyStore() {
     } catch (error: any) {
       console.error("Login error:", error);
       let message = "An error occurred during sign in.";
-      
       if (error.code === 'auth/invalid-credential') {
-        message = "No account found with these credentials. Please check your email and password.";
-      } else if (error.code === 'auth/too-many-requests') {
-        message = "Too many failed attempts. Try again later.";
+        message = "No account found with these credentials.";
       }
-      
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -115,18 +110,14 @@ export function useCocofyStore() {
       await setDoc(doc(db, 'users', newUser.id), newUser);
       toast({
         title: "Account Created",
-        description: `Welcome to Cocofy, ${userData.name}! Your data is now securely stored in the cloud.`,
+        description: `Welcome to Cocofy, ${userData.name}!`,
       });
     } catch (error: any) {
       console.error("Signup error:", error);
-      let message = "An error occurred during sign up.";
-      if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered.";
-      }
       toast({
         variant: "destructive",
         title: "Signup Failed",
-        description: message,
+        description: "An error occurred during sign up.",
       });
     } finally {
       setIsAuthenticating(false);
@@ -180,8 +171,10 @@ export function useCocofyStore() {
           const jobData = jobDoc.data() as Job;
           const userData = userDoc.data() as UserProfile;
 
+          // Check if worker already has a final status for this job
           const prevStatus = jobData.workerStatuses?.[currentUser.id];
           if (prevStatus && prevStatus !== 'pending') {
+            // Just update status if already responded, no points change
             const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
             transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
             return;
@@ -205,16 +198,7 @@ export function useCocofyStore() {
 
           const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
           
-          let globalStatus = jobData.status;
-          if (status === 'rejected') {
-            globalStatus = 'rejected';
-          }
-
-          transaction.update(jobRef, { 
-            workerStatuses: newWorkerStatuses,
-            status: globalStatus
-          });
-
+          transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
           transaction.update(userRef, {
             points: newPoints,
             acceptedJobs: newAccepted,
@@ -243,6 +227,33 @@ export function useCocofyStore() {
     }
   };
 
+  const resetRankings = () => {
+    if (!db || !currentUser || currentUser.role !== 'manager') return;
+    
+    workers.forEach(worker => {
+      updateDocumentNonBlocking(doc(db, 'users', worker.id), {
+        points: 0,
+        acceptedJobs: 0,
+        rejectedJobs: 0
+      });
+    });
+
+    toast({
+      title: "Rankings Reset",
+      description: "All worker statistics have been reset to zero.",
+    });
+  };
+
+  const updateWorkerStats = (workerId: string, stats: Partial<UserProfile>) => {
+    if (!db || !currentUser || currentUser.role !== 'manager') return;
+    
+    updateDocumentNonBlocking(doc(db, 'users', workerId), stats);
+    toast({
+      title: "Worker Updated",
+      description: "Statistics updated successfully.",
+    });
+  };
+
   const reassignWorker = (jobId: string, workerIds: string[]) => {
     if (!db) return;
     const job = jobs.find(j => j.id === jobId);
@@ -253,12 +264,10 @@ export function useCocofyStore() {
       newWorkerStatuses[id] = job.workerStatuses?.[id] || 'pending';
     });
 
-    const anyRejected = Object.values(newWorkerStatuses).some(s => s === 'rejected');
-
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
       assignedWorkerIds: workerIds, 
       workerStatuses: newWorkerStatuses,
-      status: anyRejected ? 'rejected' : 'pending'
+      status: 'pending' 
     });
 
     toast({
@@ -288,6 +297,8 @@ export function useCocofyStore() {
     updateJobStatus,
     reassignWorker,
     signup,
-    deleteJob
+    deleteJob,
+    resetRankings,
+    updateWorkerStats
   };
 }

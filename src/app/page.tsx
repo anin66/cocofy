@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -112,7 +111,7 @@ export default function Home() {
                         value={authData.name}
                         disabled={store.isAuthenticating}
                         onChange={e => setAuthData({ ...authData, name: e.target.value })}
-                        className="bg-white/5 border-white/10 pl-10"
+                        className="bg-white/5 border-white/10 pl-10 text-white"
                       />
                     </div>
                   </div>
@@ -128,42 +127,10 @@ export default function Home() {
                       value={authData.email}
                       disabled={store.isAuthenticating}
                       onChange={e => setAuthData({ ...authData, email: e.target.value })}
-                      className="bg-white/5 border-white/10 pl-10"
+                      className="bg-white/5 border-white/10 pl-10 text-white"
                     />
                   </div>
                 </div>
-
-                {authMode === 'signup' && authData.role === 'worker' && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input 
-                          type="tel" 
-                          placeholder="+1 (555) 000-0000" 
-                          value={authData.phone}
-                          disabled={store.isAuthenticating}
-                          onChange={e => setAuthData({ ...authData, phone: e.target.value })}
-                          className="bg-white/5 border-white/10 pl-10"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Date of Birth</Label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input 
-                          type="date" 
-                          value={authData.dob}
-                          disabled={store.isAuthenticating}
-                          onChange={e => setAuthData({ ...authData, dob: e.target.value })}
-                          className="bg-white/5 border-white/10 pl-10 text-white"
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Password</Label>
@@ -175,7 +142,7 @@ export default function Home() {
                       value={authData.password}
                       disabled={store.isAuthenticating}
                       onChange={e => setAuthData({ ...authData, password: e.target.value })}
-                      className="bg-white/5 border-white/10 pl-10"
+                      className="bg-white/5 border-white/10 pl-10 text-white"
                     />
                   </div>
                 </div>
@@ -229,12 +196,6 @@ export default function Home() {
                 )}
               </div>
             </div>
-
-            <div className="pt-2 text-center">
-              <p className="text-[10px] text-muted-foreground">
-                By signing up, you agree to our Terms of Service and Privacy Policy.
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -281,7 +242,7 @@ export default function Home() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input 
                       placeholder="Search jobs..." 
-                      className="pl-10 bg-white/5 border-white/10"
+                      className="pl-10 bg-white/5 border-white/10 text-white"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                     />
@@ -357,13 +318,12 @@ export default function Home() {
             </div>
 
             <div className="space-y-6">
-               <div className="flex items-center gap-2 mb-2">
-                 <Trophy className="w-5 h-5 text-yellow-500" />
-                 <h2 className="text-2xl font-headline font-bold text-white">Leaderboard</h2>
-               </div>
                <Leaderboard 
                  workers={store.workers} 
                  currentUserId={store.currentUser?.id} 
+                 role="manager"
+                 onReset={store.resetRankings}
+                 onUpdateStats={store.updateWorkerStats}
                />
             </div>
           </div>
@@ -418,13 +378,10 @@ export default function Home() {
             </div>
 
             <div className="space-y-6">
-               <div className="flex items-center gap-2 mb-2">
-                 <Trophy className="w-5 h-5 text-yellow-500" />
-                 <h2 className="text-2xl font-headline font-bold text-white">Leaderboard</h2>
-               </div>
                <Leaderboard 
                  workers={store.workers} 
                  currentUserId={store.currentUser?.id} 
+                 role="worker"
                />
             </div>
           </div>

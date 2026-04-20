@@ -30,8 +30,8 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       
       // Allow update if is owner OR if it's an atomic update through a transaction 
-      // where the user is updating their own points/stats.
-      allow update: if isOwner(userId);
+      // OR if the user is a manager (to allow manual ranking edits)
+      allow update: if isOwner(userId) || isManager();
       
       allow delete: if isOwner(userId);
     }

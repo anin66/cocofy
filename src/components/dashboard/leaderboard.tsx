@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { UserProfile } from '@/lib/types';
+import React, { useState } from 'react';
+import { UserProfile, Role } from '@/lib/types';
 import { 
   Table, 
   TableBody, 
@@ -10,18 +10,55 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Trophy, Medal, Star, User } from 'lucide-react';
+import { Trophy, Medal, Star, User, RotateCcw, Edit2, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LeaderboardProps {
   workers: UserProfile[];
   currentUserId?: string;
+  role?: Role;
+  onReset?: () => void;
+  onUpdateStats?: (id: string, stats: Partial<UserProfile>) => void;
 }
 
-export function Leaderboard({ workers, currentUserId }: LeaderboardProps) {
-  // Workers are expected to be pre-sorted by points in the store
-  
+export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateStats }: LeaderboardProps) {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingWorkerId, setEditingWorkerId] = useState<string>("");
+  const [editStats, setEditStats] = useState({
+    points: 0,
+    acceptedJobs: 0,
+    rejectedJobs: 0
+  });
+
   const getRankIcon = (index: number) => {
     switch (index) {
       case 0: return <Trophy className="w-5 h-5 text-yellow-400" />;
@@ -31,18 +68,81 @@ export function Leaderboard({ workers, currentUserId }: LeaderboardProps) {
     }
   };
 
+  const handleEditClick = () => {
+    if (workers.length > 0) {
+      const firstWorker = workers[0];
+      setEditingWorkerId(firstWorker.id);
+      setEditStats({
+        points: firstWorker.points || 0,
+        acceptedJobs: firstWorker.acceptedJobs || 0,
+        rejectedJobs: firstWorker.rejectedJobs || 0
+      });
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleWorkerSelect = (id: string) => {
+    const worker = workers.find(w => w.id === id);
+    if (worker) {
+      setEditingWorkerId(id);
+      setEditStats({
+        points: worker.points || 0,
+        acceptedJobs: worker.acceptedJobs || 0,
+        rejectedJobs: worker.rejectedJobs || 0
+      });
+    }
+  };
+
+  const handleSaveStats = () => {
+    if (editingWorkerId && onUpdateStats) {
+      onUpdateStats(editingWorkerId, editStats);
+      setIsEditModalOpen(false);
+    }
+  };
+
   return (
     <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
-      <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+      <div className="p-6 border-b border-white/5 bg-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-primary/10 text-primary">
             <Star className="w-5 h-5" />
           </div>
           <h3 className="text-xl font-headline font-bold text-white">Top Workers</h3>
         </div>
-        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
-          Global Rankings
-        </Badge>
+        
+        {role === 'manager' ? (
+          <div className="flex items-center gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-white">
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                  Reset Ranking
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="glass border-white/10">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="text-white">Reset All Rankings?</AlertDialogTitle>
+                  <AlertDialogDescription className="text-muted-foreground">
+                    This will set all workers' points, accepted, and rejected jobs to 0. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onReset} className="orange-gradient">Reset All</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
+            <Button size="sm" className="orange-gradient text-xs" onClick={handleEditClick}>
+              <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+              Edit Ranking
+            </Button>
+          </div>
+        ) : (
+          <div className="px-3 py-1 rounded-full bg-primary/5 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest">
+            Global Rankings
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -105,16 +205,86 @@ export function Leaderboard({ workers, currentUserId }: LeaderboardProps) {
                 </TableRow>
               );
             })}
-            {workers.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                  No workers found in the database.
-                </TableCell>
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[400px] glass border-white/10 p-0 overflow-hidden">
+          <div className="p-6 space-y-6">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-headline flex items-center gap-2 text-white">
+                <Edit2 className="w-5 h-5 text-primary" />
+                Edit Worker Ranking
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Manually adjust a worker's statistics. Use with care.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-white">Select Worker</Label>
+                <Select value={editingWorkerId} onValueChange={handleWorkerSelect}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                    <SelectValue placeholder="Choose a worker" />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-white/10">
+                    {workers.map(w => (
+                      <SelectItem key={w.id} value={w.id} className="text-white">
+                        {w.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="points" className="text-white">Total Points</Label>
+                  <Input 
+                    id="points"
+                    type="number"
+                    value={editStats.points}
+                    onChange={e => setEditStats({ ...editStats, points: parseInt(e.target.value) || 0 })}
+                    className="bg-white/5 border-white/10 text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="accepted" className="text-white">Accepted</Label>
+                    <Input 
+                      id="accepted"
+                      type="number"
+                      value={editStats.acceptedJobs}
+                      onChange={e => setEditStats({ ...editStats, acceptedJobs: parseInt(e.target.value) || 0 })}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rejected" className="text-white">Rejected</Label>
+                    <Input 
+                      id="rejected"
+                      type="number"
+                      value={editStats.rejectedJobs}
+                      onChange={e => setEditStats({ ...editStats, rejectedJobs: parseInt(e.target.value) || 0 })}
+                      className="bg-white/5 border-white/10 text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 bg-white/5 border-t border-white/5">
+            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)} className="text-white">Cancel</Button>
+            <Button onClick={handleSaveStats} className="orange-gradient gap-2">
+              <Save className="w-4 h-4" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
