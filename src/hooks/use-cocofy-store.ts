@@ -8,8 +8,6 @@ import {
   collection, 
   doc, 
   setDoc, 
-  query, 
-  orderBy,
   runTransaction 
 } from 'firebase/firestore';
 import { 
@@ -36,21 +34,27 @@ export function useCocofyStore() {
   }, [db, authUser]);
   const { data: currentUser, isLoading: isProfileLoading } = useDoc<UserProfile>(currentUserRef);
 
-  // Jobs Query - only run if authenticated
-  const jobsQuery = useMemoFirebase(() => {
+  // Jobs Query - Fetching whole collection to avoid Firestore's implicit filtering of docs with missing fields
+  const jobsCollection = useMemoFirebase(() => {
     if (!db || !authUser) return null;
-    return query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
+    return collection(db, 'jobs');
   }, [db, authUser]);
-  const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsQuery);
+  const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsCollection);
 
-  // Users Query (Fetch all to avoid missing users without points field)
-  const usersQuery = useMemoFirebase(() => {
+  // Users Query
+  const usersCollection = useMemoFirebase(() => {
     if (!db || !authUser) return null;
     return collection(db, 'users');
   }, [db, authUser]);
-  const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
+  const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
   
-  const jobs = jobsData || [];
+  // Local sorting for jobs to ensure no data is lost even if createdAt is missing
+  const jobs = (jobsData || []).sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
+
   const allUsers = usersData || [];
   
   // Sort workers by points locally for the leaderboard
@@ -160,7 +164,6 @@ export function useCocofyStore() {
   const updateJobStatus = async (jobId: string, status: JobStatus) => {
     if (!db || !currentUser) return;
 
-    // Worker response logic with Leaderboard points
     if (currentUser.role === 'worker') {
       try {
         await runTransaction(db, async (transaction) => {
@@ -177,7 +180,6 @@ export function useCocofyStore() {
           const jobData = jobDoc.data() as Job;
           const userData = userDoc.data() as UserProfile;
 
-          // Check if already responded to prevent double counting
           const prevStatus = jobData.workerStatuses?.[currentUser.id];
           if (prevStatus && prevStatus !== 'pending') {
             const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };

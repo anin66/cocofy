@@ -283,7 +283,7 @@ export default function Home() {
                       placeholder="Search jobs..." 
                       className="pl-10 bg-white/5 border-white/10"
                       value={searchQuery}
-                      onChange={e => setSearchQuery(searchQuery)}
+                      onChange={e => setSearchQuery(e.target.value)}
                     />
                   </div>
                   <Button 
