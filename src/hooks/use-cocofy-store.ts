@@ -70,7 +70,7 @@ export function useCocofyStore() {
       let message = "An error occurred during sign in.";
       
       if (error.code === 'auth/invalid-credential') {
-        message = "Invalid email or password. Please check your credentials and try again.";
+        message = "No account found with this email and password. If you signed up yesterday before our sync update, please click 'Sign Up' to create a new permanent account.";
       } else if (error.code === 'auth/user-not-found') {
         message = "No account found with this email.";
       } else if (error.code === 'auth/wrong-password') {
