@@ -6,7 +6,8 @@ import {
   doc, 
   setDoc, 
   query, 
-  orderBy 
+  orderBy,
+  runTransaction 
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -39,10 +40,10 @@ export function useCocofyStore() {
   }, [db, authUser]);
   const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsQuery);
 
-  // Users Query (to find workers) - only run if authenticated
+  // Users Query (for Leaderboard and worker selection)
   const usersQuery = useMemoFirebase(() => {
     if (!db || !authUser) return null;
-    return collection(db, 'users');
+    return query(collection(db, 'users'), orderBy('points', 'desc'));
   }, [db, authUser]);
   const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
   
@@ -94,7 +95,10 @@ export function useCocofyStore() {
         phone: userData.phone || '',
         dob: userData.dob || '',
         skills: [],
-        availability: 'Available'
+        availability: 'Available',
+        points: 0,
+        acceptedJobs: 0,
+        rejectedJobs: 0
       };
       
       await setDoc(doc(db, 'users', newUser.id), newUser);
@@ -146,39 +150,92 @@ export function useCocofyStore() {
     });
   };
 
-  const updateJobStatus = (jobId: string, status: JobStatus) => {
-    if (!db) return;
+  const updateJobStatus = async (jobId: string, status: JobStatus) => {
+    if (!db || !currentUser) return;
 
-    // If a worker is calling this, update their specific status key
-    if (currentUser?.role === 'worker') {
-      const job = jobs.find(j => j.id === jobId);
-      if (!job) return;
+    // Worker response logic with Leaderboard points
+    if (currentUser.role === 'worker') {
+      try {
+        await runTransaction(db, async (transaction) => {
+          const jobRef = doc(db, 'jobs', jobId);
+          const userRef = doc(db, 'users', currentUser.id);
+          
+          const jobDoc = await transaction.get(jobRef);
+          const userDoc = await transaction.get(userRef);
+          
+          if (!jobDoc.exists() || !userDoc.exists()) {
+            throw new Error("Document does not exist!");
+          }
 
-      const newWorkerStatuses = { 
-        ...(job.workerStatuses || {}), 
-        [currentUser.id]: status 
-      };
+          const jobData = jobDoc.data() as Job;
+          const userData = userDoc.data() as UserProfile;
 
-      // Calculate global status: if anyone rejected, the job needs attention ('rejected')
-      // Otherwise, the overall status follows the confirm/complete flow
-      let globalStatus = job.status;
-      if (status === 'rejected') {
-        globalStatus = 'rejected';
+          // Check if already responded to prevent double counting
+          const prevStatus = jobData.workerStatuses?.[currentUser.id];
+          if (prevStatus && prevStatus !== 'pending') {
+            // Only update status, no points
+            const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
+            transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
+            return;
+          }
+
+          // Calculate point changes
+          let pointsChange = 0;
+          let acceptedChange = 0;
+          let rejectedChange = 0;
+
+          if (status === 'accepted') {
+            pointsChange = 10;
+            acceptedChange = 1;
+          } else if (status === 'rejected') {
+            pointsChange = -5;
+            rejectedChange = 1;
+          }
+
+          const newPoints = Math.max(0, (userData.points || 0) + pointsChange);
+          const newAccepted = (userData.acceptedJobs || 0) + acceptedChange;
+          const newRejected = (userData.rejectedJobs || 0) + rejectedChange;
+
+          const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
+          
+          // Determine overall status
+          let globalStatus = jobData.status;
+          if (status === 'rejected') {
+            globalStatus = 'rejected';
+          }
+
+          transaction.update(jobRef, { 
+            workerStatuses: newWorkerStatuses,
+            status: globalStatus
+          });
+
+          transaction.update(userRef, {
+            points: newPoints,
+            acceptedJobs: newAccepted,
+            rejectedJobs: newRejected
+          });
+        });
+
+        toast({
+          title: "Status Updated",
+          description: `Status updated to ${status}. Points updated.`,
+        });
+      } catch (e) {
+        console.error("Transaction failed: ", e);
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: "Could not update status or points.",
+        });
       }
-
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
-        workerStatuses: newWorkerStatuses,
-        status: globalStatus
-      });
     } else {
       // Manager manual status update
       updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
+      toast({
+        title: "Status Updated",
+        description: `Status updated to ${status}.`,
+      });
     }
-
-    toast({
-      title: "Status Updated",
-      description: `Status updated to ${status}.`,
-    });
   };
 
   const reassignWorker = (jobId: string, workerIds: string[]) => {

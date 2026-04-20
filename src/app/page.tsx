@@ -6,10 +6,11 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { JobCard } from '@/components/dashboard/job-card';
 import { CreateJobModal } from '@/components/dashboard/create-job-modal';
 import { ReassignmentModal } from '@/components/dashboard/reassignment-modal';
+import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Sprout, Briefcase, Plus, Users, Search, Phone, Calendar, Mail, Lock, User, Loader2, Trophy } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
@@ -256,94 +257,115 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-2xl font-headline font-bold text-white">Manage Jobs</h2>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search jobs..." 
-                  className="pl-10 bg-white/5 border-white/10"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h2 className="text-2xl font-headline font-bold text-white">Manage Jobs</h2>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 md:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search jobs..." 
+                      className="pl-10 bg-white/5 border-white/10"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => setShowCreateModal(true)}
+                    className="orange-gradient"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Job
+                  </Button>
+                </div>
               </div>
-              <Button 
-                onClick={() => setShowCreateModal(true)}
-                className="orange-gradient"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Job
-              </Button>
+
+              <Tabs defaultValue="all" className="space-y-6">
+                <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
+                  <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-primary">All Jobs</TabsTrigger>
+                  <TabsTrigger value="unassigned" className="rounded-lg data-[state=active]:bg-primary">Unassigned</TabsTrigger>
+                  <TabsTrigger value="rejected" className="rounded-lg data-[state=active]:bg-accent">Action Required</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="all" className="mt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredJobs.map(job => (
+                      <JobCard 
+                        key={job.id} 
+                        job={job} 
+                        role="manager" 
+                        currentUserId={store.currentUser?.id}
+                        assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                        onStatusUpdate={store.updateJobStatus}
+                        onReassign={() => setReassigningJob(job)}
+                        onDelete={store.deleteJob}
+                      />
+                    ))}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="unassigned">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredJobs.filter(j => (j.assignedWorkerIds?.length || 0) === 0).map(job => (
+                      <JobCard 
+                        key={job.id} 
+                        job={job} 
+                        role="manager" 
+                        currentUserId={store.currentUser?.id}
+                        assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                        onStatusUpdate={store.updateJobStatus}
+                        onReassign={() => setReassigningJob(job)}
+                        onDelete={store.deleteJob}
+                      />
+                    ))}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="rejected">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filteredJobs.filter(j => j.status === 'rejected').map(job => (
+                      <JobCard 
+                        key={job.id} 
+                        job={job} 
+                        role="manager" 
+                        currentUserId={store.currentUser?.id}
+                        assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                        onStatusUpdate={store.updateJobStatus}
+                        onReassign={() => setReassigningJob(job)}
+                        onDelete={store.deleteJob}
+                      />
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="space-y-6">
+               <div className="flex items-center gap-2 mb-2">
+                 <Trophy className="w-5 h-5 text-yellow-500" />
+                 <h2 className="text-2xl font-headline font-bold text-white">Leaderboard</h2>
+               </div>
+               <Leaderboard 
+                 workers={store.workers} 
+                 currentUserId={store.currentUser?.id} 
+               />
             </div>
           </div>
-
-          <Tabs defaultValue="all" className="space-y-6">
-            <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
-              <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-primary">All Jobs</TabsTrigger>
-              <TabsTrigger value="unassigned" className="rounded-lg data-[state=active]:bg-primary">Unassigned</TabsTrigger>
-              <TabsTrigger value="rejected" className="rounded-lg data-[state=active]:bg-accent">Action Required</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="all" className="mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredJobs.map(job => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    role="manager" 
-                    currentUserId={store.currentUser?.id}
-                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                    onStatusUpdate={store.updateJobStatus}
-                    onReassign={() => setReassigningJob(job)}
-                    onDelete={store.deleteJob}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="unassigned">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredJobs.filter(j => (j.assignedWorkerIds?.length || 0) === 0).map(job => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    role="manager" 
-                    currentUserId={store.currentUser?.id}
-                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                    onStatusUpdate={store.updateJobStatus}
-                    onReassign={() => setReassigningJob(job)}
-                    onDelete={store.deleteJob}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="rejected">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredJobs.filter(j => j.status === 'rejected').map(job => (
-                  <JobCard 
-                    key={job.id} 
-                    job={job} 
-                    role="manager" 
-                    currentUserId={store.currentUser?.id}
-                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                    onStatusUpdate={store.updateJobStatus}
-                    onReassign={() => setReassigningJob(job)}
-                    onDelete={store.deleteJob}
-                  />
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
         </div>
       ) : (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-8 animate-fade-in">
           <div className="glass-card p-8 rounded-3xl orange-gradient text-white flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
              <div className="relative z-10">
                <h2 className="text-3xl font-headline font-bold mb-2 text-white">Hello, {store.currentUser.name}</h2>
-               <p className="text-white/80 max-w-md">Manage your assigned harvesting tasks here.</p>
+               <div className="flex items-center gap-4">
+                 <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
+                   <Star className="w-3.5 h-3.5 fill-white" />
+                   {store.currentUser.points || 0} Points
+                 </div>
+                 <p className="text-white/80">Manage your assigned harvesting tasks here.</p>
+               </div>
              </div>
              <div className="flex gap-4 relative z-10">
                <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
@@ -357,25 +379,38 @@ export default function Home() {
              </div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-xl font-headline font-bold text-white">My Assignments</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {workerJobs.map(job => (
-                <JobCard 
-                  key={job.id} 
-                  job={job} 
-                  role="worker" 
-                  currentUserId={store.currentUser?.id}
-                  assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                  onStatusUpdate={store.updateJobStatus}
-                />
-              ))}
-              {workerJobs.length === 0 && (
-                <div className="col-span-full py-20 text-center glass-card rounded-3xl">
-                   <Briefcase className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                   <p className="text-muted-foreground">No jobs assigned to you at the moment.</p>
-                </div>
-              )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <h3 className="text-xl font-headline font-bold text-white">My Assignments</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {workerJobs.map(job => (
+                  <JobCard 
+                    key={job.id} 
+                    job={job} 
+                    role="worker" 
+                    currentUserId={store.currentUser?.id}
+                    assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                    onStatusUpdate={store.updateJobStatus}
+                  />
+                ))}
+                {workerJobs.length === 0 && (
+                  <div className="col-span-full py-20 text-center glass-card rounded-3xl">
+                     <Briefcase className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+                     <p className="text-muted-foreground">No jobs assigned to you at the moment.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+               <div className="flex items-center gap-2 mb-2">
+                 <Trophy className="w-5 h-5 text-yellow-500" />
+                 <h2 className="text-2xl font-headline font-bold text-white">Leaderboard</h2>
+               </div>
+               <Leaderboard 
+                 workers={store.workers} 
+                 currentUserId={store.currentUser?.id} 
+               />
             </div>
           </div>
         </div>

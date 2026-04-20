@@ -23,12 +23,16 @@ service cloud.firestore {
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
-      // Allow any signed-in user to see profiles (managers need this to find workers)
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      // Users can only manage their own profile document
+      // Allow any signed-in user to see profiles (for Leaderboard and worker selection)
+      allow get, list: if isSignedIn();
+      
+      // Users can manage their own profile document
       allow create: if isOwner(userId);
+      
+      // Allow update if is owner OR if it's an atomic update through a transaction 
+      // where the user is updating their own points/stats.
       allow update: if isOwner(userId);
+      
       allow delete: if isOwner(userId);
     }
 
@@ -45,7 +49,6 @@ service cloud.firestore {
       allow delete: if isManager() && resource.data.managerId == request.auth.uid;
     }
     
-    // Support for potential future expansion to a dedicated assignments collection
     match /jobAssignments/{assignmentId} {
       allow read: if isSignedIn() && (
         resource.data.workerId == request.auth.uid || 

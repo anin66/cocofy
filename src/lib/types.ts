@@ -9,6 +9,10 @@ export interface UserProfile {
   availability: 'Available' | 'Unavailable' | 'Busy';
   phone?: string;
   dob?: string;
+  // Ranking Stats
+  points: number;
+  acceptedJobs: number;
+  rejectedJobs: number;
 }
 
 export type JobStatus = 'unconfirmed' | 'pending' | 'accepted' | 'rejected' | 'confirmed' | 'completed';
