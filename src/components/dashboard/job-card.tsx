@@ -147,9 +147,19 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
         )}
 
         {role === 'manager' && job.status === 'pending' && !isTeamComplete && (
-          <div className="flex items-center gap-2 text-xs font-medium text-yellow-500 p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
-            <AlertCircle className="w-3.5 h-3.5" />
-            Team slots still available.
+          <div className="flex items-center justify-between gap-2 p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
+            <div className="flex items-center gap-2 text-xs font-medium text-yellow-500">
+              <AlertCircle className="w-3.5 h-3.5" />
+              Team slots available
+            </div>
+            <UIButton 
+              size="sm" 
+              variant="secondary" 
+              className="h-7 px-2 text-[10px] font-bold"
+              onClick={() => onReassign?.(job.id)}
+            >
+              Assign Workers
+            </UIButton>
           </div>
         )}
       </CardContent>
