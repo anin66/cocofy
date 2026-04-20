@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -251,7 +250,6 @@ export function useCocofyStore() {
           description: `Status updated to ${status}. Points updated.`,
         });
       } catch (e) {
-        // Fail silently or show generic toast - handled centrally by FirebaseErrorListener if permission denied
         toast({
           variant: "destructive",
           title: "Update Failed",
