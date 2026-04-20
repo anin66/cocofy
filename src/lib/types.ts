@@ -15,6 +15,7 @@ export type JobStatus = 'unconfirmed' | 'pending' | 'accepted' | 'rejected' | 'c
 
 export interface Job {
   id: string;
+  managerId: string;
   customerName: string;
   customerPhone: string;
   location: string;
@@ -22,7 +23,8 @@ export interface Job {
   treeCount: number;
   requiredWorkersCount: number;
   assignedWorkerIds: string[];
-  status: JobStatus;
+  workerStatuses: Record<string, JobStatus>; // Track status per worker ID
+  status: JobStatus; // Overall job status
   createdAt: string;
   notes?: string;
 }

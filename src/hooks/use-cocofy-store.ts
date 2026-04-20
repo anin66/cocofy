@@ -1,17 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { 
   collection, 
   doc, 
   setDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
   query, 
-  where, 
-  orderBy,
-  serverTimestamp 
+  orderBy 
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -70,13 +65,9 @@ export function useCocofyStore() {
       let message = "An error occurred during sign in.";
       
       if (error.code === 'auth/invalid-credential') {
-        message = "No account found with these credentials. Please ensure you have signed up for a new cloud account.";
-      } else if (error.code === 'auth/user-not-found') {
-        message = "No account found with this email.";
-      } else if (error.code === 'auth/wrong-password') {
-        message = "Incorrect password.";
+        message = "No account found with these credentials. Please check your email and password.";
       } else if (error.code === 'auth/too-many-requests') {
-        message = "Account access temporarily disabled due to too many failed attempts. Try again later.";
+        message = "Too many failed attempts. Try again later.";
       }
       
       toast({
@@ -114,13 +105,9 @@ export function useCocofyStore() {
     } catch (error: any) {
       console.error("Signup error:", error);
       let message = "An error occurred during sign up.";
-      
       if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered. Try logging in.";
-      } else if (error.code === 'auth/weak-password') {
-        message = "Password must be at least 6 characters.";
+        message = "This email is already registered.";
       }
-
       toast({
         variant: "destructive",
         title: "Signup Failed",
@@ -148,34 +135,75 @@ export function useCocofyStore() {
       managerId: currentUser.id,
       status: 'unconfirmed',
       assignedWorkerIds: [],
+      workerStatuses: {},
       createdAt: new Date().toISOString()
     };
     
     addDocumentNonBlocking(collection(db, 'jobs'), newJobData);
     toast({
       title: "Job Created",
-      description: `Job for ${jobData.customerName} saved to cloud database.`,
+      description: `Job for ${jobData.customerName} saved as unconfirmed.`,
     });
   };
 
   const updateJobStatus = (jobId: string, status: JobStatus) => {
     if (!db) return;
-    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
+
+    // If a worker is calling this, update their specific status key
+    if (currentUser?.role === 'worker') {
+      const job = jobs.find(j => j.id === jobId);
+      if (!job) return;
+
+      const newWorkerStatuses = { 
+        ...(job.workerStatuses || {}), 
+        [currentUser.id]: status 
+      };
+
+      // Calculate global status: if anyone rejected, the job needs attention ('rejected')
+      // Otherwise, the overall status follows the confirm/complete flow
+      let globalStatus = job.status;
+      if (status === 'rejected') {
+        globalStatus = 'rejected';
+      }
+
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+        workerStatuses: newWorkerStatuses,
+        status: globalStatus
+      });
+    } else {
+      // Manager manual status update
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
+    }
+
     toast({
       title: "Status Updated",
-      description: `Job status updated to ${status}.`,
+      description: `Status updated to ${status}.`,
     });
   };
 
   const reassignWorker = (jobId: string, workerIds: string[]) => {
     if (!db) return;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    // Build new worker statuses, keeping existing ones if worker is still assigned
+    const newWorkerStatuses: Record<string, JobStatus> = {};
+    workerIds.forEach(id => {
+      newWorkerStatuses[id] = job.workerStatuses?.[id] || 'pending';
+    });
+
+    // Check if any *current* assigned worker has rejected
+    const anyRejected = Object.values(newWorkerStatuses).some(s => s === 'rejected');
+
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
       assignedWorkerIds: workerIds, 
-      status: 'pending' 
+      workerStatuses: newWorkerStatuses,
+      status: anyRejected ? 'rejected' : 'pending'
     });
+
     toast({
       title: "Workers Assigned",
-      description: `${workerIds.length} worker(s) assigned to this job.`,
+      description: `${workerIds.length} worker(s) assigned.`,
     });
   };
 
@@ -184,7 +212,7 @@ export function useCocofyStore() {
     deleteDocumentNonBlocking(doc(db, 'jobs', jobId));
     toast({
       title: "Job Removed",
-      description: "Job has been deleted from the cloud.",
+      description: "Job has been deleted.",
     });
   };
 

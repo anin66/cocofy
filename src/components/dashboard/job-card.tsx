@@ -9,7 +9,6 @@ import {
   Clock, 
   AlertCircle,
   MoreVertical,
-  User,
   TreePalm,
   Phone,
   FileText,
@@ -30,6 +29,7 @@ import {
 interface JobCardProps {
   job: Job;
   role: Role;
+  currentUserId?: string;
   assignedWorkers?: UserProfile[];
   onStatusUpdate?: (id: string, status: JobStatus) => void;
   onReassign?: (id: string) => void;
@@ -45,11 +45,17 @@ const statusConfig = {
   completed: { label: 'Completed', icon: TreePalm, color: 'bg-primary/10 text-primary border-primary/20' },
 };
 
-export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onReassign, onDelete }: JobCardProps) {
-  const status = statusConfig[job.status] || statusConfig.pending;
+export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStatusUpdate, onReassign, onDelete }: JobCardProps) {
+  // Determine display status based on role
+  const individualStatus = role === 'worker' && currentUserId ? (job.workerStatuses?.[currentUserId] || 'pending') : job.status;
+  const status = statusConfig[individualStatus] || statusConfig.pending;
   const StatusIcon = status.icon;
+  
   const hasAssignedWorkers = assignedWorkers.length > 0;
   const isTeamComplete = assignedWorkers.length >= job.requiredWorkersCount;
+
+  // Find who rejected
+  const rejectingWorkers = assignedWorkers.filter(w => job.workerStatuses?.[w.id] === 'rejected');
 
   return (
     <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:translate-y-[-2px]">
@@ -57,7 +63,7 @@ export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onRea
         <div className="flex justify-between items-start">
           <Badge className={cn("px-2.5 py-0.5 border font-medium flex gap-1.5 items-center", status.color)} variant="outline">
             <StatusIcon className="w-3.5 h-3.5" />
-            {status.label}
+            {role === 'worker' ? status.label : statusConfig[job.status].label}
           </Badge>
           
           <DropdownMenu>
@@ -89,7 +95,7 @@ export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onRea
         <div className="space-y-2">
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Phone className="w-4 h-4 text-primary" />
-            <span className="text-foreground text-white">{job.customerPhone}</span>
+            <span className="text-white">{job.customerPhone}</span>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4 text-primary" />
@@ -101,7 +107,7 @@ export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onRea
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <TreePalm className="w-4 h-4 text-primary" />
-            <span className="text-white">Trees: <span className="text-foreground font-medium text-white">{job.treeCount}</span></span>
+            <span className="text-white">Trees: <span className="font-medium text-white">{job.treeCount}</span></span>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Users className="w-4 h-4 text-primary" />
@@ -110,30 +116,40 @@ export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onRea
           
           {hasAssignedWorkers && (
              <div className="pt-2 space-y-1.5 border-t border-white/5">
-               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Assigned Personnel</p>
+               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Team & Status</p>
                <div className="flex flex-wrap gap-1.5">
-                 {assignedWorkers.map(w => (
-                   <Badge key={w.id} variant="secondary" className="bg-white/5 border-white/10 text-white flex gap-1.5 items-center py-1">
-                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                     {w.name}
-                   </Badge>
-                 ))}
+                 {assignedWorkers.map(w => {
+                    const wStatus = job.workerStatuses?.[w.id] || 'pending';
+                    const s = statusConfig[wStatus];
+                    return (
+                      <Badge key={w.id} variant="secondary" className="bg-white/5 border-white/10 text-white flex gap-1.5 items-center py-1">
+                        <div className={cn("w-1.5 h-1.5 rounded-full", 
+                          wStatus === 'accepted' ? "bg-blue-400" : 
+                          wStatus === 'rejected' ? "bg-accent" : "bg-yellow-400"
+                        )} />
+                        {w.name}
+                      </Badge>
+                    );
+                 })}
                </div>
              </div>
           )}
         </div>
 
-        {job.status === 'rejected' && role === 'manager' && (
-          <div className="flex items-center gap-2 text-xs font-medium text-accent p-2 bg-accent/10 rounded-md border border-accent/20">
-            <AlertCircle className="w-3.5 h-3.5" />
-            A worker rejected assignment. Team incomplete.
+        {role === 'manager' && rejectingWorkers.length > 0 && (
+          <div className="flex items-start gap-2 text-xs font-medium text-accent p-2 bg-accent/10 rounded-md border border-accent/20">
+            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <div>
+              Rejection: {rejectingWorkers.map(w => w.name).join(', ')}
+              <p className="text-[10px] opacity-70 mt-0.5">Replacement needed for incomplete team.</p>
+            </div>
           </div>
         )}
 
         {role === 'manager' && job.status === 'pending' && !isTeamComplete && (
           <div className="flex items-center gap-2 text-xs font-medium text-yellow-500 p-2 bg-yellow-500/10 rounded-md border border-yellow-500/20">
             <AlertCircle className="w-3.5 h-3.5" />
-            Team not fully assigned.
+            Team slots still available.
           </div>
         )}
       </CardContent>
@@ -148,16 +164,7 @@ export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onRea
           </UIButton>
         )}
 
-        {role === 'manager' && job.status === 'pending' && !isTeamComplete && (
-          <UIButton 
-            className="w-full orange-gradient"
-            onClick={() => onReassign?.(job.id)}
-          >
-            Fill Remaining Slots
-          </UIButton>
-        )}
-
-        {role === 'worker' && job.status === 'pending' && (
+        {role === 'worker' && individualStatus === 'pending' && (
           <>
             <UIButton 
               className="flex-1 orange-gradient hover:opacity-90"
@@ -189,7 +196,7 @@ export function JobCard({ job, role, assignedWorkers = [], onStatusUpdate, onRea
             className="w-full orange-gradient"
             onClick={() => onReassign?.(job.id)}
           >
-            Replace Worker
+            Manage Replacements
           </UIButton>
         )}
       </CardFooter>

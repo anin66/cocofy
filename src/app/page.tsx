@@ -292,6 +292,7 @@ export default function Home() {
                     key={job.id} 
                     job={job} 
                     role="manager" 
+                    currentUserId={store.currentUser?.id}
                     assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
@@ -308,6 +309,7 @@ export default function Home() {
                     key={job.id} 
                     job={job} 
                     role="manager" 
+                    currentUserId={store.currentUser?.id}
                     assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
@@ -324,6 +326,7 @@ export default function Home() {
                     key={job.id} 
                     job={job} 
                     role="manager" 
+                    currentUserId={store.currentUser?.id}
                     assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
                     onStatusUpdate={store.updateJobStatus}
                     onReassign={() => setReassigningJob(job)}
@@ -340,16 +343,16 @@ export default function Home() {
              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
              <div className="relative z-10">
                <h2 className="text-3xl font-headline font-bold mb-2 text-white">Hello, {store.currentUser.name}</h2>
-               <p className="text-white/80 max-w-md">You have {workerJobs.filter(j => j.status === 'pending').length} new assignments waiting for your review.</p>
+               <p className="text-white/80 max-w-md">Manage your assigned harvesting tasks here.</p>
              </div>
              <div className="flex gap-4 relative z-10">
                <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
                  <p className="text-xs text-white/60 uppercase tracking-widest font-bold">New</p>
-                 <p className="text-2xl font-headline font-bold">{workerJobs.filter(j => j.status === 'pending').length}</p>
+                 <p className="text-2xl font-headline font-bold">{workerJobs.filter(j => (j.workerStatuses?.[store.currentUser?.id || ''] || 'pending') === 'pending').length}</p>
                </div>
                <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
-                 <p className="text-xs text-white/60 uppercase tracking-widest font-bold">Active</p>
-                 <p className="text-2xl font-headline font-bold">{workerJobs.filter(j => j.status === 'accepted' || j.status === 'confirmed').length}</p>
+                 <p className="text-xs text-white/60 uppercase tracking-widest font-bold">Total</p>
+                 <p className="text-2xl font-headline font-bold">{workerJobs.length}</p>
                </div>
              </div>
           </div>
@@ -362,6 +365,7 @@ export default function Home() {
                   key={job.id} 
                   job={job} 
                   role="worker" 
+                  currentUserId={store.currentUser?.id}
                   onStatusUpdate={store.updateJobStatus}
                 />
               ))}
