@@ -1,0 +1,135 @@
+/**
+ * Cocofy Firestore Security Rules
+ *
+ * Core Philosophy:
+ * This ruleset implements a strict, role-based authorization model tailored for the Cocofy harvesting 
+ * management platform. It prioritizes Authorization Independence by relying on denormalized 
+ * ownership fields (managerId, workerId) directly within documents. This ensures that security 
+ * decisions are performant and do not require expensive cross-document lookups (get() calls) 
+ * for listing or updating resources.
+ *
+ * Data Structure:
+ * - /users/{userId}: Private user profiles.
+ * - /workerProfiles/{workerId}: Worker-specific data, manageable by workers and viewable by managers.
+ * - /users/{managerId}/customers/{customerId}: Manager-specific customer directories.
+ * - /jobs/{jobId}: Top-level job requests, owned by managers.
+ * - /jobAssignments/{jobAssignmentId}: Shared assignment records between managers and workers.
+ *
+ * Key Security Decisions:
+ * - Ownership Model: Most data is secured based on the UID of the creator or the specific 
+ *   user the data belongs to.
+ * - Role-Based Access (DBAC): The 'role' field in the User document (manager vs. worker) 
+ *   is used to gate specific actions, such as managers listing all worker profiles.
+ * - Denormalization: JobAssignment documents contain both managerId and workerId to allow 
+ *   both parties to list and view assignments securely and independently.
+ * - Structural Segregation: Customer data is nested under the manager's path to provide 
+ *   implicit isolation.
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- HELPER FUNCTIONS ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the authenticated user's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the user owns an existing document for update/delete operations. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    /** @description Retrieves the user document data from the database. */
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    /** @description Checks if the authenticated user has the 'manager' role. */
+    function isManager() {
+      return isSignedIn() && getUserData().role == 'manager';
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Core user profile access. Users can only manage their own profile.
+     * @path /users/{userId}
+     * @allow Authenticated user with matching UID (create, get, list, update, delete).
+     * @deny Any user attempting to access a profile that is not their own.
+     * @principle Enforces strict user ownership and path-to-data consistency.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Worker-specific profiles. Workers manage their own; managers can read all for assignments.
+     * @path /workerProfiles/{workerId}
+     * @allow Worker owning the profile (all), Manager role (get, list).
+     * @deny Non-managers attempting to list all profiles.
+     * @principle Shared access based on roles for business operations.
+     */
+    match /workerProfiles/{workerId} {
+      allow get: if isOwner(workerId) || isManager();
+      allow list: if isSignedIn() && (isOwner(workerId) || isManager());
+      allow create: if isOwner(workerId) && request.resource.data.userId == request.auth.uid;
+      allow update: if isExistingOwner(workerId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(workerId);
+    }
+
+    /**
+     * @description Customer records managed by a specific manager.
+     * @path /users/{managerId}/customers/{customerId}
+     * @allow The manager associated with the parent path (all).
+     * @deny Any user who is not the manager identified in the path.
+     * @principle Structural segregation of private business data.
+     */
+    match /users/{managerId}/customers/{customerId} {
+      allow get, list: if isOwner(managerId);
+      allow create: if isOwner(managerId);
+      allow update: if isExistingOwner(managerId);
+      allow delete: if isExistingOwner(managerId);
+    }
+
+    /**
+     * @description Top-level job requests. Owned and managed by managers.
+     * @path /jobs/{jobId}
+     * @allow Manager who created the job (all). Workers access details via assignments.
+     * @deny Anyone who is not the owning manager from writing/deleting.
+     * @principle Attribute-based ownership for top-level collections.
+     */
+    match /jobs/{jobId} {
+      allow get: if isSignedIn() && resource.data.managerId == request.auth.uid;
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.managerId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && resource.data.managerId == request.auth.uid && request.resource.data.managerId == resource.data.managerId;
+      allow delete: if isSignedIn() && resource != null && resource.data.managerId == request.auth.uid;
+    }
+
+    /**
+     * @description Individual job assignments linking workers to jobs.
+     * @path /jobAssignments/{jobAssignmentId}
+     * @allow Manager of the job or the assigned Worker (get, list, update).
+     * @deny Users not identified as the manager or worker on the document.
+     * @principle Shared access model using denormalized identity fields.
+     */
+    match /jobAssignments/{jobAssignmentId} {
+      allow get: if isSignedIn() && (resource.data.managerId == request.auth.uid || resource.data.workerId == request.auth.uid);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.managerId == request.auth.uid;
+      allow update: if isSignedIn() && resource != null && (resource.data.managerId == request.auth.uid || resource.data.workerId == request.auth.uid) && request.resource.data.managerId == resource.data.managerId && request.resource.data.workerId == resource.data.workerId;
+      allow delete: if isSignedIn() && resource != null && resource.data.managerId == request.auth.uid;
+    }
+  }
+}

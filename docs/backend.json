@@ -1,0 +1,412 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user account within the Cocofy application, encapsulating general profile information and their assigned role.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The user's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The user's last name."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the application (manager or worker).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's contact phone number."
+        },
+        "profileImageUrl": {
+          "type": "string",
+          "description": "URL to the user's profile picture.",
+          "format": "uri"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user account was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WorkerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WorkerProfile",
+      "type": "object",
+      "description": "Stores specific attributes and preferences for users with the 'worker' role.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the WorkerProfile entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the associated User entity. (Relationship: User 1:1 WorkerProfile)"
+        },
+        "skills": {
+          "type": "array",
+          "description": "A list of skills possessed by the worker, relevant to job assignments.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "availability": {
+          "type": "string",
+          "description": "General availability status of the worker (e.g., 'full-time', 'part-time', 'on-demand')."
+        },
+        "rating": {
+          "type": "number",
+          "description": "Average rating of the worker based on past job performance."
+        },
+        "preferredLocation": {
+          "type": "string",
+          "description": "The worker's preferred geographical area for job assignments."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the worker profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the worker profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "skills",
+        "availability",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Contains details about the customer requesting a coconut harvesting job.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Customer entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the customer or organization."
+        },
+        "contactPerson": {
+          "type": "string",
+          "description": "The name of the primary contact person for the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "The contact email address of the customer.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The contact phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical address of the customer or job location."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the customer record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the customer record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "contactPerson",
+        "email",
+        "phoneNumber",
+        "address",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Job": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Job",
+      "type": "object",
+      "description": "Represents a single coconut harvesting job request, detailing its requirements, schedule, and status.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Job entity."
+        },
+        "managerId": {
+          "type": "string",
+          "description": "Reference to the User who created and is managing this job (manager role). (Relationship: User 1:N Job)"
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to the Customer for whom this job is being performed. (Relationship: Customer 1:N Job)"
+        },
+        "title": {
+          "type": "string",
+          "description": "A brief title describing the job."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the job requirements and scope."
+        },
+        "location": {
+          "type": "string",
+          "description": "The specific location where the job is to be carried out."
+        },
+        "scheduledDateTime": {
+          "type": "string",
+          "description": "The date and time when the job is scheduled to begin.",
+          "format": "date-time"
+        },
+        "requiredWorkersCount": {
+          "type": "number",
+          "description": "The number of workers required for this job."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current overall status of the job (e.g., 'pending', 'scheduled', 'in-progress', 'completed', 'cancelled').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managerConfirmationStatus": {
+          "type": "string",
+          "description": "The status of the manager's confirmation for the job (e.g., 'pending', 'confirmed', 'unconfirmed').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reminderSentAt": {
+          "type": "string",
+          "description": "Timestamp when the pre-job confirmation reminder was sent to the manager.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the job was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the job was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "managerId",
+        "customerId",
+        "title",
+        "description",
+        "location",
+        "scheduledDateTime",
+        "requiredWorkersCount",
+        "status",
+        "managerConfirmationStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "JobAssignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "JobAssignment",
+      "type": "object",
+      "description": "Represents an individual worker's assignment to a specific job, including their response and progress.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the JobAssignment entity."
+        },
+        "jobId": {
+          "type": "string",
+          "description": "Reference to the Job this assignment is for. (Relationship: Job 1:N JobAssignment)"
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Reference to the User assigned to this job (worker role). (Relationship: WorkerProfile 1:N JobAssignment)"
+        },
+        "assignmentStatus": {
+          "type": "string",
+          "description": "The current status of this specific worker's assignment (e.g., 'assigned', 'accepted', 'rejected', 'completed', 'cancelled_by_worker', 'reassigned').",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assignedDateTime": {
+          "type": "string",
+          "description": "Timestamp when the worker was assigned to the job.",
+          "format": "date-time"
+        },
+        "responseDateTime": {
+          "type": "string",
+          "description": "Timestamp when the worker responded (accepted/rejected) to the assignment.",
+          "format": "date-time"
+        },
+        "completedDateTime": {
+          "type": "string",
+          "description": "Timestamp when the worker marked their assignment as completed.",
+          "format": "date-time"
+        },
+        "managerNotes": {
+          "type": "string",
+          "description": "Specific notes from the manager regarding this assignment."
+        },
+        "workerNotes": {
+          "type": "string",
+          "description": "Specific notes from the worker regarding this assignment (e.g., reason for rejection)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the job assignment record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the job assignment record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "jobId",
+        "workerId",
+        "assignmentStatus",
+        "assignedDateTime",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores core user profile information, including their assigned role (manager or worker). The `userId` parameter is expected to match `request.auth.uid` for private access."
+        }
+      },
+      {
+        "path": "/workerProfiles/{workerId}",
+        "definition": {
+          "entityName": "WorkerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/WorkerProfile"
+          },
+          "description": "Dedicated collection for worker-specific attributes and preferences. The `workerId` parameter is the user's unique ID. Individual workers can manage their own profile, while managers have read access to all worker profiles for assignment purposes.",
+          "params": [
+            {
+              "name": "workerId",
+              "description": "The unique ID of the worker, matching their `userId`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{managerId}/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Customers created and managed by a specific manager. Access is restricted to the `managerId` associated with the path. This ensures Authorization Independence and supports QAPs for managers to list their own customers.",
+          "params": [
+            {
+              "name": "managerId",
+              "description": "The unique ID of the manager who owns and created this customer record."
+            },
+            {
+              "name": "customerId",
+              "description": "The unique ID of the customer record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/jobs/{jobId}",
+        "definition": {
+          "entityName": "Job",
+          "schema": {
+            "$ref": "#/backend/entities/Job"
+          },
+          "description": "Top-level collection for all job requests. Each job document contains a `managerId` field that identifies its creator and owner. Write access is restricted to the owning manager. For worker access to job details, refer to the denormalized data in `jobAssignments` to maintain Authorization Independence.",
+          "params": [
+            {
+              "name": "jobId",
+              "description": "The unique ID of the job."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/jobAssignments/{jobAssignmentId}",
+        "definition": {
+          "entityName": "JobAssignment",
+          "schema": {
+            "$ref": "#/backend/entities/JobAssignment"
+          },
+          "description": "Represents an individual worker's assignment to a job. This document includes denormalized 'managerId' and essential 'Job' details (e.g., 'jobTitle', 'jobLocation', 'jobScheduledDateTime', 'jobDescription', 'jobRequiredWorkersCount', 'jobStatus') to achieve Authorization Independence. Both managers and workers can query and manage their respective assignments without requiring 'get()' calls to parent Job documents, supporting QAPs for listing assignments.",
+          "params": [
+            {
+              "name": "jobAssignmentId",
+              "description": "The unique ID of the job assignment."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure for Cocofy prioritizes secure, scalable, and debuggable access by strictly adhering to the core design principles.Central to this design is **Authorization Independence**, achieved through strategic denormalization. For instance, `JobAssignment` documents are not merely links; they are enriched with denormalized `managerId`, `workerId`, and essential `Job` details (like `jobTitle`, `jobLocation`, `jobScheduledDateTime`, `jobDescription`, `jobRequiredWorkersCount`, and `jobStatus`). This ensures that neither managers nor workers need to perform costly or rule-breaking `get()` calls to parent documents (`jobs/{jobId}`) to ascertain authorization or retrieve critical display information when listing or viewing assignments.\n\nThis structure directly supports **Queryable Access Patterns (QAPs)**. Managers can efficiently list their created jobs from `/jobs` by querying on `managerId == request.auth.uid`. They can also list their associated customers from `/users/{managerId}/customers` (where `managerId` is `request.auth.uid`). Crucially, both managers and workers can list their respective job assignments from the top-level `/jobAssignments` collection by querying `managerId == request.auth.uid` or `workerId == request.auth.uid`, respectively. The denormalized job details within `JobAssignment` documents make these lists self-sufficient for display purposes, eliminating the need for client-side joins or insecure `get()` operations in rules.\n\n**Structural Segregation** is applied by separating data with distinct security postures. For example, manager-specific customer data resides under `/users/{managerId}/customers`, ensuring only the owning manager can access them. Worker-specific profiles are in `/workerProfiles/{workerId}`, allowing individual workers to manage their data while granting managers broader read access for the 'Smart Reassignment Assistant'. Global entities like `jobs` are at the top level, with access carefully controlled by the `managerId` field and further supported by denormalized `JobAssignment` data for worker access.\n\n**DBAC (Database-Backed Access Control)** is implemented by storing the user's `role` directly in their `users/{userId}` document. Authorization rules will leverage `get(/users/$(request.auth.uid)).data.role` to verify manager or worker roles, providing clear, auditable, and performant access control based solely on `request.auth.uid` and database content. This avoids custom claims entirely. Consistent use of semantic wildcards (e.g., `{userId}`, `{jobId}`) and dedicated status fields (`status`, `assignmentStatus`) further enhances **Data Clarity and Predictability**, simplifying rule writing and debugging. Invariants like ownership and timestamps are explicitly managed within the document schemas."
+  }
+}
