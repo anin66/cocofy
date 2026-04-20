@@ -56,6 +56,7 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
   const pendingWorkers = assignedWorkers.filter(w => !job.workerStatuses?.[w.id] || job.workerStatuses?.[w.id] === 'pending');
   
   const isTeamComplete = acceptedWorkers.length >= job.requiredWorkersCount;
+  const isInitiallyAssigned = (job.assignedWorkerIds?.length || 0) > 0;
 
   return (
     <Card className="glass-card overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 hover:translate-y-[-2px]">
@@ -116,7 +117,7 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
           
           {assignedWorkers.length > 0 && (
              <div className="pt-2 space-y-2 border-t border-white/5">
-               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Team Breakdown</p>
+               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Team Status</p>
                
                {acceptedWorkers.length > 0 && (
                  <div className="space-y-1">
@@ -148,7 +149,7 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
 
                {pendingWorkers.length > 0 && (
                  <div className="space-y-1">
-                   <p className="text-[10px] text-yellow-400 font-medium">Pending:</p>
+                   <p className="text-[10px] text-yellow-400 font-medium">Pending Response:</p>
                    <div className="flex flex-wrap gap-1.5">
                     {pendingWorkers.map(w => (
                       <Badge key={w.id} variant="secondary" className="bg-yellow-500/10 border-yellow-500/20 text-white flex gap-1.5 items-center py-1">
@@ -173,7 +174,7 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
           </div>
         )}
 
-        {role === 'manager' && job.status === 'pending' && !isTeamComplete && (
+        {role === 'manager' && job.status === 'pending' && !isInitiallyAssigned && (
           <UIButton 
             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
             onClick={() => onReassign?.(job)}
