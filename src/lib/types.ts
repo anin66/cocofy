@@ -20,6 +20,7 @@ export interface Job {
   location: string;
   scheduledDate: string;
   treeCount: number;
+  requiredWorkersCount: number;
   assignedWorkerId: string | null;
   status: JobStatus;
   createdAt: string;

@@ -12,7 +12,8 @@ import {
   User,
   TreePalm,
   Phone,
-  FileText
+  FileText,
+  Users
 } from 'lucide-react';
 import { Job, JobStatus, Role } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +68,7 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
               {role === 'manager' && (
                 <>
                   {job.status !== 'unconfirmed' && (
-                    <DropdownMenuItem className="text-sm" onClick={() => onReassign?.(job.id)}>
+                    <DropdownMenuItem className="text-sm text-white" onClick={() => onReassign?.(job.id)}>
                       {job.assignedWorkerId ? "Reassign Worker" : "Assign Worker"}
                     </DropdownMenuItem>
                   )}
@@ -86,24 +87,28 @@ export function JobCard({ job, role, workerName, onStatusUpdate, onReassign, onD
         <div className="space-y-2">
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Phone className="w-4 h-4 text-primary" />
-            <span className="text-foreground">{job.customerPhone}</span>
+            <span className="text-foreground text-white">{job.customerPhone}</span>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <MapPin className="w-4 h-4 text-primary" />
-            <span>{job.location}</span>
+            <span className="text-white">{job.location}</span>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4 text-primary" />
-            <span>{new Date(job.scheduledDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+            <span className="text-white">{new Date(job.scheduledDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <TreePalm className="w-4 h-4 text-primary" />
-            <span>Trees to harvest: <span className="text-foreground font-medium">{job.treeCount}</span></span>
+            <span className="text-white">Trees: <span className="text-foreground font-medium text-white">{job.treeCount}</span></span>
+          </div>
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="text-white">Team Required: <span className="text-foreground font-medium text-white">{job.requiredWorkersCount}</span></span>
           </div>
           {workerName && (
              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
              <User className="w-4 h-4 text-primary" />
-             <span>Assigned to: <span className="text-foreground font-medium">{workerName}</span></span>
+             <span className="text-white">Assigned to: <span className="text-foreground font-medium text-white">{workerName}</span></span>
            </div>
           )}
         </div>
