@@ -28,6 +28,8 @@ export function useCocofyStore() {
   const db = useFirestore();
   const auth = getAuth();
 
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
   // Fetch the specific profile for the current logged in user
   const currentUserRef = useMemoFirebase(() => {
     if (!db || !authUser) return null;
@@ -54,7 +56,9 @@ export function useCocofyStore() {
   const workers = allUsers.filter(u => u.role === 'worker');
 
   const login = async (role: Role, email?: string, password?: string) => {
-    if (!email || !password) return;
+    if (!email || !password || isAuthenticating) return;
+    
+    setIsAuthenticating(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({
@@ -64,12 +68,15 @@ export function useCocofyStore() {
     } catch (error: any) {
       console.error("Login error:", error);
       let message = "An error occurred during sign in.";
+      
       if (error.code === 'auth/invalid-credential') {
         message = "Invalid email or password. Please check your credentials and try again.";
       } else if (error.code === 'auth/user-not-found') {
         message = "No account found with this email.";
       } else if (error.code === 'auth/wrong-password') {
         message = "Incorrect password.";
+      } else if (error.code === 'auth/too-many-requests') {
+        message = "Access to this account has been temporarily disabled due to many failed login attempts. Please try again later.";
       }
       
       toast({
@@ -77,11 +84,15 @@ export function useCocofyStore() {
         title: "Login Failed",
         description: message,
       });
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
   const signup = async (userData: any) => {
-    if (!userData.email || !userData.password) return;
+    if (!userData.email || !userData.password || isAuthenticating) return;
+    
+    setIsAuthenticating(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
       const newUser: UserProfile = {
@@ -103,10 +114,13 @@ export function useCocofyStore() {
     } catch (error: any) {
       console.error("Signup error:", error);
       let message = "An error occurred during sign up.";
+      
       if (error.code === 'auth/email-already-in-use') {
         message = "This email is already registered. Try logging in instead.";
       } else if (error.code === 'auth/weak-password') {
         message = "The password is too weak. Please use at least 6 characters.";
+      } else if (error.code === 'auth/too-many-requests') {
+        message = "Too many requests. Please try again in a few minutes.";
       }
 
       toast({
@@ -114,6 +128,8 @@ export function useCocofyStore() {
         title: "Signup Failed",
         description: message,
       });
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -178,6 +194,7 @@ export function useCocofyStore() {
     jobs,
     currentUser,
     workers,
+    isAuthenticating,
     isUserLoading: isAuthLoading || isProfileLoading || isUsersLoading || isJobsLoading,
     login,
     logout,

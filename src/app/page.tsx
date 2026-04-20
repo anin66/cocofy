@@ -30,7 +30,7 @@ export default function Home() {
     password: ''
   });
 
-  if (store.isUserLoading) {
+  if (store.isUserLoading && !store.isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -65,6 +65,7 @@ export default function Home() {
               <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 mb-4">
                 <button 
                   onClick={() => setAuthData({ ...authData, role: 'worker' })}
+                  disabled={store.isAuthenticating}
                   className={cn(
                     "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
                     authData.role === 'worker' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
@@ -74,6 +75,7 @@ export default function Home() {
                 </button>
                 <button 
                   onClick={() => setAuthData({ ...authData, role: 'manager' })}
+                  disabled={store.isAuthenticating}
                   className={cn(
                     "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
                     authData.role === 'manager' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
@@ -92,6 +94,7 @@ export default function Home() {
                       <Input 
                         placeholder="e.g. John Doe" 
                         value={authData.name}
+                        disabled={store.isAuthenticating}
                         onChange={e => setAuthData({ ...authData, name: e.target.value })}
                         className="bg-white/5 border-white/10 pl-10"
                       />
@@ -107,6 +110,7 @@ export default function Home() {
                       type="email" 
                       placeholder="email@example.com" 
                       value={authData.email}
+                      disabled={store.isAuthenticating}
                       onChange={e => setAuthData({ ...authData, email: e.target.value })}
                       className="bg-white/5 border-white/10 pl-10"
                     />
@@ -123,6 +127,7 @@ export default function Home() {
                           type="tel" 
                           placeholder="+1 (555) 000-0000" 
                           value={authData.phone}
+                          disabled={store.isAuthenticating}
                           onChange={e => setAuthData({ ...authData, phone: e.target.value })}
                           className="bg-white/5 border-white/10 pl-10"
                         />
@@ -135,6 +140,7 @@ export default function Home() {
                         <Input 
                           type="date" 
                           value={authData.dob}
+                          disabled={store.isAuthenticating}
                           onChange={e => setAuthData({ ...authData, dob: e.target.value })}
                           className="bg-white/5 border-white/10 pl-10 text-white"
                         />
@@ -151,6 +157,7 @@ export default function Home() {
                       type="password" 
                       placeholder="••••••••" 
                       value={authData.password}
+                      disabled={store.isAuthenticating}
                       onChange={e => setAuthData({ ...authData, password: e.target.value })}
                       className="bg-white/5 border-white/10 pl-10"
                     />
@@ -163,12 +170,18 @@ export default function Home() {
                   <>
                     <Button 
                       onClick={() => store.login(authData.role, authData.email, authData.password)} 
+                      disabled={store.isAuthenticating}
                       className="w-full orange-gradient font-semibold h-12"
                     >
-                      Sign In as {authData.role === 'manager' ? 'Manager' : 'Worker'}
+                      {store.isAuthenticating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        `Sign In as ${authData.role === 'manager' ? 'Manager' : 'Worker'}`
+                      )}
                     </Button>
                     <Button 
                       variant="ghost" 
+                      disabled={store.isAuthenticating}
                       onClick={() => setAuthMode('signup')}
                       className="text-primary hover:text-primary/80 hover:bg-primary/10"
                     >
@@ -179,12 +192,18 @@ export default function Home() {
                   <>
                     <Button 
                       onClick={() => store.signup(authData)} 
+                      disabled={store.isAuthenticating}
                       className="w-full orange-gradient font-semibold h-12"
                     >
-                      Create Account
+                      {store.isAuthenticating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Create Account'
+                      )}
                     </Button>
                     <Button 
                       variant="ghost" 
+                      disabled={store.isAuthenticating}
                       onClick={() => setAuthMode('login')}
                       className="text-primary hover:text-primary/80 hover:bg-primary/10"
                     >
