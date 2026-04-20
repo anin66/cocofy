@@ -72,7 +72,9 @@ export default function Home() {
                 {authMode === 'login' ? 'Welcome Back' : 'Join the Team'}
               </h2>
               <p className="text-sm text-muted-foreground text-center">
-                {authMode === 'login' ? 'Sign in to manage your assignments' : 'Create your account to get started'}
+                {authMode === 'login' 
+                  ? `Sign in to the ${authData.role} portal` 
+                  : 'Create your account to get started'}
               </p>
             </div>
 

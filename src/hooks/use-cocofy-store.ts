@@ -7,6 +7,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  getDoc,
   runTransaction 
 } from 'firebase/firestore';
 import { 
@@ -61,22 +62,57 @@ export function useCocofyStore() {
     .filter(u => u.role === 'worker')
     .sort((a, b) => (b.points || 0) - (a.points || 0));
 
-  const login = async (role: Role, email?: string, password?: string) => {
+  const login = async (targetRole: Role, email?: string, password?: string) => {
     if (!email || !password || isAuthenticating) return;
     
     setIsAuthenticating(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // 1. Authenticate with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 2. Fetch the profile from Firestore to check the role
+      const userDocRef = doc(db, 'users', userCredential.user.uid);
+      const userSnap = await getDoc(userDocRef);
+      
+      if (!userSnap.exists()) {
+        await signOut(auth);
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: "User profile not found in database.",
+        });
+        return;
+      }
+
+      const profile = userSnap.data() as UserProfile;
+
+      // 3. Verify the role matches the portal the user is trying to use
+      if (profile.role !== targetRole) {
+        await signOut(auth);
+        toast({
+          variant: "destructive",
+          title: "Access Denied",
+          description: `This account is registered as a ${profile.role}. Please log in through the ${profile.role} portal.`,
+        });
+        return;
+      }
+
       toast({
         title: "Signed In",
-        description: `Welcome back to Cocofy!`,
+        description: `Welcome back, ${profile.name}!`,
       });
     } catch (error: any) {
-      console.error("Login error:", error);
       let message = "An error occurred during sign in.";
-      if (error.code === 'auth/invalid-credential') {
-        message = "No account found with these credentials.";
+      
+      // Handling specific Firebase Auth error codes for clearer messaging
+      if (error.code === 'auth/user-not-found') {
+        message = "Email is not registered.";
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        message = "Email or password incorrect.";
+      } else if (error.code === 'auth/invalid-email') {
+        message = "Invalid email format.";
       }
+      
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -114,10 +150,14 @@ export function useCocofyStore() {
       });
     } catch (error: any) {
       console.error("Signup error:", error);
+      let message = "An error occurred during sign up.";
+      if (error.code === 'auth/email-already-in-use') {
+        message = "This email is already registered.";
+      }
       toast({
         variant: "destructive",
         title: "Signup Failed",
-        description: "An error occurred during sign up.",
+        description: message,
       });
     } finally {
       setIsAuthenticating(false);
