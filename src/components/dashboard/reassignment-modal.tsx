@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Job, UserProfile } from '@/lib/types';
-import { UserPlus, Check, Users, Phone, Calendar, Mail, Info } from 'lucide-react';
+import { UserPlus, Check, Users, Phone, Calendar, Mail, Info, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -24,37 +24,54 @@ interface ReassignmentModalProps {
 }
 
 export function ReassignmentModal({ job, workers, onClose, onAssign }: ReassignmentModalProps) {
-  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+  const [selectedNewWorkerIds, setSelectedNewWorkerIds] = useState<string[]>([]);
+
+  // Identify workers who already accepted
+  const alreadyAcceptedIds = useMemo(() => {
+    if (!job) return [];
+    return Object.entries(job.workerStatuses || {})
+      .filter(([_, status]) => status === 'accepted')
+      .map(([id]) => id);
+  }, [job]);
+
+  // Total workers required minus those who already accepted
+  const slotsRemaining = (job?.requiredWorkersCount || 0) - alreadyAcceptedIds.length;
+
+  // Filter workers: hide those who already accepted or rejected this specific job
+  const availableWorkers = useMemo(() => {
+    if (!job) return [];
+    return workers.filter(w => {
+      const status = job.workerStatuses?.[w.id];
+      // Hide if accepted or rejected
+      return status !== 'accepted' && status !== 'rejected';
+    });
+  }, [job, workers]);
 
   useEffect(() => {
-    if (job) {
-      setSelectedWorkerIds(job.assignedWorkerIds || []);
-    } else {
-      setSelectedWorkerIds([]);
-    }
+    setSelectedNewWorkerIds([]);
   }, [job]);
 
   const handleAssign = () => {
     if (job) {
-      onAssign(job.id, selectedWorkerIds);
+      // Combine those who already accepted with the new selections
+      onAssign(job.id, [...alreadyAcceptedIds, ...selectedNewWorkerIds]);
       onClose();
     }
   };
 
   const toggleWorker = (workerId: string) => {
-    setSelectedWorkerIds(prev => {
+    setSelectedNewWorkerIds(prev => {
       if (prev.includes(workerId)) {
         return prev.filter(id => id !== workerId);
       }
-      if (prev.length >= (job?.requiredWorkersCount || 1)) {
+      if (prev.length >= slotsRemaining) {
         return prev;
       }
       return [...prev, workerId];
     });
   };
 
-  const requiredCount = job?.requiredWorkersCount || 1;
-  const isFull = selectedWorkerIds.length >= requiredCount;
+  const isFull = selectedNewWorkerIds.length >= slotsRemaining;
 
   return (
     <Dialog open={!!job} onOpenChange={(open) => !open && onClose()}>
@@ -63,41 +80,69 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
           <DialogHeader>
             <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-white">
               <UserPlus className="w-6 h-6 text-primary" />
-              Assign Team
+              Manage Replacements
             </DialogTitle>
             <DialogDescription className="text-muted-foreground pt-1">
-              Select <span className="text-white font-bold">{requiredCount}</span> worker(s) for <span className="text-foreground font-medium text-white">{job?.customerName}</span>.
+              Select <span className="text-white font-bold">{slotsRemaining}</span> new worker(s) for <span className="text-foreground font-medium text-white">{job?.customerName}</span>.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="p-6 space-y-4">
+          {alreadyAcceptedIds.length > 0 && (
+            <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-green-400">
+                <CheckCircle2 className="w-3 h-3" />
+                Confirmed Team Members
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {alreadyAcceptedIds.map(id => {
+                  const worker = workers.find(w => w.id === id);
+                  return (
+                    <Badge key={id} variant="outline" className="bg-white/5 border-white/10 text-white h-6">
+                      {worker?.name || id}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <Users className="w-4 h-4" />
-              Available Workers
+              Available to Replace
             </div>
             <Badge variant="outline" className={cn(
               "h-6",
               isFull ? "bg-green-500/10 text-green-500 border-green-500/20" : "bg-primary/10 text-primary border-primary/20"
             )}>
-              {selectedWorkerIds.length} / {requiredCount} Selected
+              {selectedNewWorkerIds.length} / {slotsRemaining} Selected
             </Badge>
           </div>
 
-          {isFull && (
+          {isFull && slotsRemaining > 0 && (
             <Alert className="bg-primary/5 border-primary/20 py-2">
               <Info className="w-4 h-4 text-primary" />
               <AlertDescription className="text-xs text-muted-foreground">
-                You have selected the maximum number of workers required for this job.
+                You have filled all remaining slots for this job.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {slotsRemaining <= 0 && (
+            <Alert className="bg-green-500/10 border-green-500/20 py-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              <AlertDescription className="text-xs text-muted-foreground">
+                The team is already full with confirmed workers.
               </AlertDescription>
             </Alert>
           )}
           
-          <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-            {workers.length > 0 ? (
-              workers.map(w => {
-                const isSelected = selectedWorkerIds.includes(w.id);
+          <div className="grid grid-cols-1 gap-3 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+            {availableWorkers.length > 0 ? (
+              availableWorkers.map(w => {
+                const isSelected = selectedNewWorkerIds.includes(w.id);
                 const disabled = !isSelected && isFull;
 
                 return (
@@ -145,19 +190,12 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
                           <span>DOB: <span className="text-foreground">{w.dob || 'N/A'}</span></span>
                        </div>
                     </div>
-
-                    <div className="mt-3 pt-3 border-t border-white/5 w-full flex justify-between items-center">
-                       <Badge variant="outline" className="text-[10px] bg-white/5 border-white/10 h-5">
-                          {w.availability}
-                       </Badge>
-                       <span className="text-[10px] text-muted-foreground italic">Ready to harvest</span>
-                    </div>
                   </button>
                 );
               })
             ) : (
               <div className="py-10 text-center glass-card rounded-xl border-dashed">
-                <p className="text-sm text-muted-foreground">No workers registered yet.</p>
+                <p className="text-sm text-muted-foreground">No additional available workers found.</p>
               </div>
             )}
           </div>
@@ -167,10 +205,10 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
           <Button variant="ghost" onClick={onClose} className="flex-1 text-white">Cancel</Button>
           <Button 
             onClick={handleAssign} 
-            disabled={selectedWorkerIds.length === 0}
+            disabled={selectedNewWorkerIds.length === 0 && slotsRemaining > 0}
             className="flex-1 orange-gradient"
           >
-            Confirm Team ({selectedWorkerIds.length})
+            Update Team
           </Button>
         </DialogFooter>
       </DialogContent>
