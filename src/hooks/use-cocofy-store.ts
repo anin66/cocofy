@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -70,7 +71,7 @@ export function useCocofyStore() {
       // 1. Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // 2. Fetch the profile from Firestore to check the role
+      // 2. Fetch the profile from Firestore to check the role immediately
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       const userSnap = await getDoc(userDocRef);
       
@@ -104,7 +105,7 @@ export function useCocofyStore() {
     } catch (error: any) {
       let message = "An error occurred during sign in.";
       
-      // Handling specific Firebase Auth error codes for clearer messaging
+      // Clear messaging for invalid credentials as requested
       if (error.code === 'auth/user-not-found') {
         message = "Email is not registered.";
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -149,7 +150,6 @@ export function useCocofyStore() {
         description: `Welcome to Cocofy, ${userData.name}!`,
       });
     } catch (error: any) {
-      console.error("Signup error:", error);
       let message = "An error occurred during sign up.";
       if (error.code === 'auth/email-already-in-use') {
         message = "This email is already registered.";

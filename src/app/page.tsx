@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -45,6 +46,7 @@ export default function Home() {
     password: ''
   });
 
+  // Show full screen loader ONLY during initial app load, not during specific auth role checks
   if (store.isUserLoading && !store.isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -53,7 +55,8 @@ export default function Home() {
     );
   }
 
-  if (!store.currentUser) {
+  // If not logged in OR currently in the middle of a login verification (role check), show login screen
+  if (!store.currentUser || store.isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 bg-background/90 backdrop-blur-sm"></div>
