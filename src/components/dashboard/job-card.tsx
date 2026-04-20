@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -55,7 +56,8 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
   const rejectingWorkers = assignedWorkers.filter(w => job.workerStatuses?.[w.id] === 'rejected');
   const pendingWorkers = assignedWorkers.filter(w => !job.workerStatuses?.[w.id] || job.workerStatuses?.[w.id] === 'pending');
   
-  const isTeamComplete = acceptedWorkers.length >= job.requiredWorkersCount;
+  const requiredCount = job.requiredWorkersCount || 1;
+  const isTeamComplete = acceptedWorkers.length >= requiredCount;
   const isInitiallyAssigned = (job.assignedWorkerIds?.length || 0) > 0;
 
   return (
@@ -108,11 +110,11 @@ export function JobCard({ job, role, currentUserId, assignedWorkers = [], onStat
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <TreePalm className="w-4 h-4 text-primary" />
-            <span className="text-white">Trees: <span className="font-medium text-white">{job.treeCount}</span></span>
+            <span className="text-white">Trees: <span className="font-medium text-white">{job.treeCount || 0}</span></span>
           </div>
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Users className="w-4 h-4 text-primary" />
-            <span className="text-white">Team: <span className={cn("font-medium", isTeamComplete ? "text-green-400" : "text-yellow-400")}>{acceptedWorkers.length} / {job.requiredWorkersCount}</span></span>
+            <span className="text-white">Team: <span className={cn("font-medium", isTeamComplete ? "text-green-400" : "text-yellow-400")}>{acceptedWorkers.length} / {requiredCount}</span></span>
           </div>
           
           {assignedWorkers.length > 0 && (

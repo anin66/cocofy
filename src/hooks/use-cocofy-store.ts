@@ -1,3 +1,6 @@
+
+'use client';
+
 import { useState } from 'react';
 import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -40,16 +43,20 @@ export function useCocofyStore() {
   }, [db, authUser]);
   const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsQuery);
 
-  // Users Query (for Leaderboard and worker selection)
+  // Users Query (Fetch all to avoid missing users without points field)
   const usersQuery = useMemoFirebase(() => {
     if (!db || !authUser) return null;
-    return query(collection(db, 'users'), orderBy('points', 'desc'));
+    return collection(db, 'users');
   }, [db, authUser]);
   const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
   
   const jobs = jobsData || [];
   const allUsers = usersData || [];
-  const workers = allUsers.filter(u => u.role === 'worker');
+  
+  // Sort workers by points locally for the leaderboard
+  const workers = allUsers
+    .filter(u => u.role === 'worker')
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
 
   const login = async (role: Role, email?: string, password?: string) => {
     if (!email || !password || isAuthenticating) return;
@@ -173,13 +180,11 @@ export function useCocofyStore() {
           // Check if already responded to prevent double counting
           const prevStatus = jobData.workerStatuses?.[currentUser.id];
           if (prevStatus && prevStatus !== 'pending') {
-            // Only update status, no points
             const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
             transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
             return;
           }
 
-          // Calculate point changes
           let pointsChange = 0;
           let acceptedChange = 0;
           let rejectedChange = 0;
@@ -198,7 +203,6 @@ export function useCocofyStore() {
 
           const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
           
-          // Determine overall status
           let globalStatus = jobData.status;
           if (status === 'rejected') {
             globalStatus = 'rejected';
@@ -229,7 +233,6 @@ export function useCocofyStore() {
         });
       }
     } else {
-      // Manager manual status update
       updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
       toast({
         title: "Status Updated",
@@ -243,13 +246,11 @@ export function useCocofyStore() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
 
-    // Build new worker statuses, keeping existing ones if worker is still assigned
     const newWorkerStatuses: Record<string, JobStatus> = {};
     workerIds.forEach(id => {
       newWorkerStatuses[id] = job.workerStatuses?.[id] || 'pending';
     });
 
-    // Check if any *current* assigned worker has rejected
     const anyRejected = Object.values(newWorkerStatuses).some(s => s === 'rejected');
 
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
