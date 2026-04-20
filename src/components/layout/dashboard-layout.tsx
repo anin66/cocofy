@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -7,12 +8,14 @@ import {
   Bell, 
   Menu, 
   X,
-  Sprout
+  Sprout,
+  CloudCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { UserProfile } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -57,11 +60,19 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 glass border-r border-white/5 p-6 space-y-8">
-        <div className="flex items-center gap-2 px-2">
-          <div className="w-10 h-10 rounded-xl orange-gradient flex items-center justify-center text-white">
-            <Sprout className="w-6 h-6" />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 px-2">
+            <div className="w-10 h-10 rounded-xl orange-gradient flex items-center justify-center text-white">
+              <Sprout className="w-6 h-6" />
+            </div>
+            <span className="text-2xl font-headline font-bold tracking-tight">Cocofy</span>
           </div>
-          <span className="text-2xl font-headline font-bold tracking-tight">Cocofy</span>
+          <div className="px-2">
+            <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5 py-1 px-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              Cloud Active
+            </Badge>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -113,6 +124,12 @@ export function DashboardLayout({ user, onLogout, children }: DashboardLayoutPro
           </div>
           
           <div className="flex items-center gap-2">
+            <div className="hidden sm:flex mr-2">
+              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </Badge>
+            </div>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background"></span>
