@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { 
   collection, 
   doc, 
@@ -26,21 +26,30 @@ export function useCocofyStore() {
   const db = useFirestore();
   const auth = getAuth();
 
-  // Firestore Queries
-  const jobsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
-  }, [db]);
+  // Fetch the specific profile for the current logged in user
+  const currentUserRef = useMemoFirebase(() => {
+    if (!db || !authUser) return null;
+    return doc(db, 'users', authUser.uid);
+  }, [db, authUser]);
+  const { data: currentUser, isLoading: isProfileLoading } = useDoc<UserProfile>(currentUserRef);
 
+  // Jobs Query - only run if authenticated
+  const jobsQuery = useMemoFirebase(() => {
+    if (!db || !authUser) return null;
+    return query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
+  }, [db, authUser]);
   const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsQuery);
-  const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(
-    useMemoFirebase(() => db ? collection(db, 'users') : null, [db])
-  );
+
+  // Users Query (to find workers) - only run if authenticated
+  const usersQuery = useMemoFirebase(() => {
+    if (!db || !authUser) return null;
+    return collection(db, 'users');
+  }, [db, authUser]);
+  const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
   
   const jobs = jobsData || [];
   const allUsers = usersData || [];
   const workers = allUsers.filter(u => u.role === 'worker');
-  const currentUser = allUsers.find(u => u.id === authUser?.uid) || null;
 
   const login = async (role: Role, email?: string, password?: string) => {
     if (!email || !password) return;
@@ -111,7 +120,7 @@ export function useCocofyStore() {
     jobs,
     currentUser,
     workers,
-    isUserLoading: isAuthLoading || isUsersLoading || isJobsLoading,
+    isUserLoading: isAuthLoading || isProfileLoading || isUsersLoading || isJobsLoading,
     login,
     logout,
     addJob,
