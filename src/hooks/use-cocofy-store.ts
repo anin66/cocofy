@@ -89,6 +89,7 @@ export function useCocofyStore() {
 
       // 3. Verify the role matches the portal the user is trying to use
       if (profile.role !== targetRole) {
+        // Log out immediately to prevent unauthorized dashboard access
         await signOut(auth);
         toast({
           variant: "destructive",
@@ -105,7 +106,7 @@ export function useCocofyStore() {
     } catch (error: any) {
       let message = "An error occurred during sign in.";
       
-      // Clear messaging for invalid credentials as requested
+      // Handle specific Firebase Auth error codes for cleaner UI feedback
       if (error.code === 'auth/user-not-found') {
         message = "Email is not registered.";
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -211,10 +212,9 @@ export function useCocofyStore() {
           const jobData = jobDoc.data() as Job;
           const userData = userDoc.data() as UserProfile;
 
-          // Check if worker already has a final status for this job
+          // Check if worker already has a final status for this job to prevent duplicate points
           const prevStatus = jobData.workerStatuses?.[currentUser.id];
           if (prevStatus && prevStatus !== 'pending') {
-            // Just update status if already responded, no points change
             const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
             transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
             return;
@@ -251,7 +251,7 @@ export function useCocofyStore() {
           description: `Status updated to ${status}. Points updated.`,
         });
       } catch (e) {
-        console.error("Transaction failed: ", e);
+        // Fail silently or show generic toast - handled centrally by FirebaseErrorListener if permission denied
         toast({
           variant: "destructive",
           title: "Update Failed",

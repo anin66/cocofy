@@ -55,8 +55,12 @@ export default function Home() {
     );
   }
 
+  // Prevent flicker: If the current user profile role doesn't match the selected portal tab,
+  // we treat it as "not logged in" for this view so it doesn't show the wrong dashboard.
+  const isWrongPortal = store.currentUser && store.currentUser.role !== authData.role;
+
   // If not logged in OR currently in the middle of a login verification (role check), show login screen
-  if (!store.currentUser || store.isAuthenticating) {
+  if (!store.currentUser || store.isAuthenticating || isWrongPortal) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 bg-background/90 backdrop-blur-sm"></div>
