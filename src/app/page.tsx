@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -7,6 +6,9 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { JobCard } from '@/components/dashboard/job-card';
 import { CreateJobModal } from '@/components/dashboard/create-job-modal';
 import { ReassignmentModal } from '@/components/dashboard/reassignment-modal';
+import { AssignDeliveryModal } from '@/components/dashboard/assign-delivery-modal';
+import { SetTimeModal } from '@/components/dashboard/set-time-modal';
+import { WorkerCompletionModal } from '@/components/dashboard/worker-completion-modal';
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -16,21 +18,42 @@ import {
   Briefcase, 
   Plus, 
   Users, 
-  Search, 
-  Mail, 
-  Lock, 
-  User, 
   Loader2, 
-  Star 
+  Truck,
+  IndianRupee,
+  Activity,
+  Trash2,
+  History
 } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function Home() {
   const store = useCocofyStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [reassigningJob, setReassigningJob] = useState<Job | null>(null);
+  const [assigningDeliveryJob, setAssigningDeliveryJob] = useState<Job | null>(null);
+  const [setTimeJob, setSetTimeJob] = useState<Job | null>(null);
+  const [workerCompleteJob, setWorkerCompleteJob] = useState<Job | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [activeView, setActiveView] = useState('dashboard');
@@ -41,166 +64,92 @@ export default function Home() {
     role: 'worker' as Role,
     phone: '',
     dob: '',
-    password: ''
+    password: '',
+    secretKey: ''
   });
 
-  // Show full screen loader ONLY during initial app load, not during specific auth role checks
   if (store.isUserLoading && !store.isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+           <Loader2 className="w-10 h-10 text-primary animate-spin" />
+           <p className="text-muted-foreground animate-pulse">Initializing Portal...</p>
+        </div>
       </div>
     );
   }
 
-  // Prevent flicker: If the current user profile role doesn't match the selected portal tab,
-  // we treat it as "not logged in" for this view so it doesn't show the wrong dashboard.
-  const isWrongPortal = store.currentUser && store.currentUser.role !== authData.role;
+  const availableRoles = [
+    { id: 'worker', label: 'Worker', icon: Briefcase },
+    { id: 'delivery_boy', label: 'Delivery', icon: Truck },
+    { id: 'manager', label: 'Manager', icon: Users },
+    { id: 'finance_manager', label: 'Finance', icon: IndianRupee },
+  ];
 
-  // If not logged in OR currently in the middle of a login verification (role check), show login screen
-  if (!store.currentUser || store.isAuthenticating || isWrongPortal) {
+  if (!store.currentUser || store.isAuthenticating) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 bg-background/90 backdrop-blur-sm"></div>
-        <div className="w-full max-w-[480px] relative z-10 animate-fade-in">
+        <div className="w-full max-w-[540px] relative z-10 animate-fade-in">
           <div className="flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 rounded-2xl orange-gradient flex items-center justify-center text-white mb-4 shadow-2xl shadow-primary/20">
+            <div className="w-16 h-16 rounded-2xl orange-gradient flex items-center justify-center text-white mb-4 shadow-2xl">
               <Sprout className="w-10 h-10" />
             </div>
-            <h1 className="text-4xl font-headline font-bold tracking-tight mb-2 text-white">Cocofy</h1>
-            <p className="text-muted-foreground">The future of coconut harvest management</p>
+            <h1 className="text-4xl font-headline font-bold text-white">Cocofy</h1>
+            <p className="text-muted-foreground text-lg">Smart harvest & logistics</p>
           </div>
 
-          <div className="glass border border-white/10 p-8 rounded-3xl space-y-6 shadow-2xl">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-headline font-semibold text-white text-center">
-                {authMode === 'login' ? 'Welcome Back' : 'Join the Team'}
+          <div className="glass border border-white/10 p-8 rounded-3xl space-y-6">
+            <div className="space-y-2 text-center">
+              <h2 className="text-2xl font-headline font-semibold text-white">
+                {authMode === 'login' ? 'Welcome Back' : 'Join the Network'}
               </h2>
-              <p className="text-sm text-muted-foreground text-center">
-                {authMode === 'login' 
-                  ? `Sign in to the ${authData.role} portal` 
-                  : 'Create your account to get started'}
-              </p>
             </div>
 
             <div className="space-y-4">
-              <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10 mb-4">
-                <button 
-                  onClick={() => setAuthData({ ...authData, role: 'worker' })}
-                  disabled={store.isAuthenticating}
-                  className={cn(
-                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-                    authData.role === 'worker' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
-                  )}
-                >
-                  Worker
-                </button>
-                <button 
-                  onClick={() => setAuthData({ ...authData, role: 'manager' })}
-                  disabled={store.isAuthenticating}
-                  className={cn(
-                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
-                    authData.role === 'manager' ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
-                  )}
-                >
-                  Manager
-                </button>
+              <div className="grid grid-cols-4 gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
+                {availableRoles.map((roleOption) => (
+                  <button 
+                    key={roleOption.id}
+                    disabled={store.isAuthenticating}
+                    onClick={() => setAuthData({ ...authData, role: roleOption.id as Role })}
+                    className={cn(
+                      "flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all active:scale-95 disabled:opacity-50",
+                      authData.role === roleOption.id ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                    )}
+                  >
+                    <roleOption.icon className="w-4 h-4 mb-1" />
+                    <span className="text-[10px] font-bold uppercase">{roleOption.label}</span>
+                  </button>
+                ))}
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-4">
                 {authMode === 'signup' && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Full Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input 
-                        placeholder="e.g. John Doe" 
-                        value={authData.name}
-                        disabled={store.isAuthenticating}
-                        onChange={e => setAuthData({ ...authData, name: e.target.value })}
-                        className="bg-white/5 border-white/10 pl-10 text-white"
-                      />
-                    </div>
-                  </div>
+                  <Input placeholder="Full Name" value={authData.name} onChange={e => setAuthData({ ...authData, name: e.target.value })} className="bg-white/5 border-white/10 text-white" disabled={store.isAuthenticating} />
                 )}
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input 
-                      type="email" 
-                      placeholder="email@example.com" 
-                      value={authData.email}
-                      disabled={store.isAuthenticating}
-                      onChange={e => setAuthData({ ...authData, email: e.target.value })}
-                      className="bg-white/5 border-white/10 pl-10 text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input 
-                      type="password" 
-                      placeholder="••••••••" 
-                      value={authData.password}
-                      disabled={store.isAuthenticating}
-                      onChange={e => setAuthData({ ...authData, password: e.target.value })}
-                      className="bg-white/5 border-white/10 pl-10 text-white"
-                    />
-                  </div>
-                </div>
+                <Input type="email" placeholder="Email Address" value={authData.email} onChange={e => setAuthData({ ...authData, email: e.target.value })} className="bg-white/5 border-white/10 text-white" disabled={store.isAuthenticating} />
+                {authMode === 'signup' && (
+                  <Input type="tel" placeholder="Phone Number" value={authData.phone} onChange={e => setAuthData({ ...authData, phone: e.target.value })} className="bg-white/5 border-white/10 text-white" disabled={store.isAuthenticating} />
+                )}
+                <Input type="password" placeholder="Password" value={authData.password} onChange={e => setAuthData({ ...authData, password: e.target.value })} className="bg-white/5 border-white/10 text-white" disabled={store.isAuthenticating} />
+                {authMode === 'signup' && (authData.role === 'manager' || authData.role === 'finance_manager') && (
+                  <Input type="password" placeholder="Security Key" value={authData.secretKey} onChange={e => setAuthData({ ...authData, secretKey: e.target.value })} className="bg-primary/5 border-primary/20 text-white" disabled={store.isAuthenticating} />
+                )}
               </div>
               
               <div className="flex flex-col gap-3 pt-4">
-                {authMode === 'login' ? (
-                  <>
-                    <Button 
-                      onClick={() => store.login(authData.role, authData.email, authData.password)} 
-                      disabled={store.isAuthenticating}
-                      className="w-full orange-gradient font-semibold h-12"
-                    >
-                      {store.isAuthenticating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        `Sign In as ${authData.role === 'manager' ? 'Manager' : 'Worker'}`
-                      )}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      disabled={store.isAuthenticating}
-                      onClick={() => setAuthMode('signup')}
-                      className="text-primary hover:text-primary/80 hover:bg-primary/10"
-                    >
-                      Don't have an account? Sign Up
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button 
-                      onClick={() => store.signup(authData)} 
-                      disabled={store.isAuthenticating}
-                      className="w-full orange-gradient font-semibold h-12"
-                    >
-                      {store.isAuthenticating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Create Account'
-                      )}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      disabled={store.isAuthenticating}
-                      onClick={() => setAuthMode('login')}
-                      className="text-primary hover:text-primary/80 hover:bg-primary/10"
-                    >
-                      Already have an account? Sign In
-                    </Button>
-                  </>
-                )}
+                <Button 
+                  disabled={store.isAuthenticating}
+                  onClick={() => authMode === 'login' ? store.login(authData.role, authData.email, authData.password) : store.signup(authData)} 
+                  className="w-full orange-gradient font-semibold h-12 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  {store.isAuthenticating && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                </Button>
+                <Button variant="ghost" disabled={store.isAuthenticating} onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="text-primary hover:bg-white/5 transition-all active:scale-95">
+                  {authMode === 'login' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                </Button>
               </div>
             </div>
           </div>
@@ -209,197 +158,174 @@ export default function Home() {
     );
   }
 
-  const filteredJobs = store.jobs.filter(j => 
-    j.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    j.location.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredJobs = store.jobs.filter(j => !j.archived && (j.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || j.location.toLowerCase().includes(searchQuery.toLowerCase())));
+  const historyJobs = store.jobs.filter(j => j.archived && (j.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || j.location.toLowerCase().includes(searchQuery.toLowerCase())));
+  const userJobs = store.currentUser.role === 'delivery_boy' ? filteredJobs.filter(j => j.deliveryBoyId === store.currentUser?.id) : filteredJobs.filter(j => j.assignedWorkerIds?.includes(store.currentUser?.id || ''));
 
-  const activeJobs = filteredJobs.filter(j => j.status !== 'completed' && j.status !== 'rejected');
-  const workerJobs = store.jobs.filter(j => j.assignedWorkerIds?.includes(store.currentUser?.id || ''));
+  const currentOperationalJobs = store.currentUser.role === 'manager' || store.currentUser.role === 'finance_manager' ? filteredJobs : userJobs;
 
   return (
-    <DashboardLayout 
-      user={store.currentUser} 
-      onLogout={store.logout} 
-      activeView={activeView} 
-      onNavigate={setActiveView}
-    >
-      {activeView === 'leaderboard' ? (
-        <div className="animate-fade-in max-w-5xl mx-auto">
-          <Leaderboard 
-            workers={store.workers} 
-            currentUserId={store.currentUser?.id} 
-            role={store.currentUser.role}
-            onReset={store.resetRankings}
-            onUpdateStats={store.updateWorkerStats}
-          />
+    <DashboardLayout user={store.currentUser} onLogout={store.logout} activeView={activeView} onNavigate={setActiveView}>
+      {activeView === 'staff' ? (
+        <div className="space-y-10 max-w-6xl mx-auto">
+          <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+             <div className="p-6 border-b border-white/5 bg-white/5">
+                <div className="flex items-center gap-2 text-primary">
+                  <Activity className="w-5 h-5" />
+                  <h3 className="text-xl font-headline font-bold text-white">Harvesting Workers</h3>
+                </div>
+             </div>
+             <Table>
+                <TableHeader className="bg-white/[0.02]">
+                  <TableRow className="border-white/5">
+                    <TableHead className="text-white">Full Name</TableHead>
+                    <TableHead className="text-white">Contact</TableHead>
+                    <TableHead className="text-right text-white">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {store.workers.map((staff) => (
+                    <TableRow key={staff.id} className="border-white/5">
+                      <TableCell className="font-semibold text-white">{staff.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{staff.email}<br/>{staff.phone}</TableCell>
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10"><Trash2 className="w-4 h-4" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="glass border-white/10">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-white">Delete Staff Profile?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-muted-foreground">
+                                This will permanently remove {staff.name} and revoke their access to the Cocofy portal. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => store.deleteStaff(staff.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+             </Table>
+          </div>
+
+          <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+             <div className="p-6 border-b border-white/5 bg-white/5">
+                <div className="flex items-center gap-2 text-orange-500">
+                  <Truck className="w-5 h-5" />
+                  <h3 className="text-xl font-headline font-bold text-white">Delivery Boys</h3>
+                </div>
+             </div>
+             <Table>
+                <TableHeader className="bg-white/[0.02]">
+                  <TableRow className="border-white/5">
+                    <TableHead className="text-white">Full Name</TableHead>
+                    <TableHead className="text-white">Contact</TableHead>
+                    <TableHead className="text-right text-white">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {store.deliveryBoys.map((staff) => (
+                    <TableRow key={staff.id} className="border-white/5">
+                      <TableCell className="font-semibold text-white">{staff.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{staff.email}<br/>{staff.phone}</TableCell>
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10"><Trash2 className="w-4 h-4" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="glass border-white/10">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-white">Delete Delivery Partner?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-muted-foreground">
+                                This will permanently remove {staff.name} and revoke their access to the Cocofy portal. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => store.deleteStaff(staff.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+             </Table>
+          </div>
         </div>
-      ) : store.currentUser.role === 'manager' ? (
-        <div className="space-y-8 animate-fade-in">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Jobs', value: store.jobs.length, icon: Briefcase, color: 'text-primary' },
-              { label: 'Active Tasks', value: activeJobs.length, icon: Sprout, color: 'text-green-500' },
-              { label: 'Unassigned', value: store.jobs.filter(j => (j.assignedWorkerIds?.length || 0) === 0).length, icon: Users, color: 'text-yellow-500' },
-              { label: 'Total Workers', value: store.workers.length, icon: Users, color: 'text-blue-500' },
-            ].map((stat, i) => (
-              <div key={i} className="glass-card p-6 rounded-2xl flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">{stat.label}</p>
-                  <p className="text-3xl font-headline font-bold mt-1 text-white">{stat.value}</p>
-                </div>
-                <div className={cn("p-3 rounded-xl bg-white/5", stat.color)}>
-                  <stat.icon className="w-6 h-6" />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <h2 className="text-2xl font-headline font-bold text-white">Manage Jobs</h2>
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1 md:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search jobs..." 
-                    className="pl-10 bg-white/5 border-white/10 text-white"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  onClick={() => setShowCreateModal(true)}
-                  className="orange-gradient"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Job
-                </Button>
-              </div>
+      ) : activeView === 'leaderboard' ? (
+        <Leaderboard workers={store.workers} currentUserId={store.currentUser?.id} role={store.currentUser.role} onReset={store.resetRankings} onUpdateStats={store.updateWorkerStats} />
+      ) : activeView === 'history' ? (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3 mb-6"><History className="w-6 h-6 text-primary" /><h2 className="text-2xl font-headline font-bold text-white">Job Records History</h2></div>
+          {historyJobs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {historyJobs.map(job => (
+                <JobCard key={job.id} job={job} role={store.currentUser.role} currentUserId={store.currentUser?.id} assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))} deliveryBoy={store.deliveryBoys.find(b => b.id === job.deliveryBoyId)} onDelete={store.deleteJob} />
+              ))}
             </div>
-
-            <Tabs defaultValue="all" className="space-y-6">
-              <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl">
-                <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-primary">All Jobs</TabsTrigger>
-                <TabsTrigger value="unassigned" className="rounded-lg data-[state=active]:bg-primary">Unassigned</TabsTrigger>
-                <TabsTrigger value="rejected" className="rounded-lg data-[state=active]:bg-accent">Action Required</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="all" className="mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredJobs.map(job => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
-                      role="manager" 
-                      currentUserId={store.currentUser?.id}
-                      assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                      onStatusUpdate={store.updateJobStatus}
-                      onReassign={() => setReassigningJob(job)}
-                      onDelete={store.deleteJob}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="unassigned">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredJobs.filter(j => (j.assignedWorkerIds?.length || 0) === 0).map(job => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
-                      role="manager" 
-                      currentUserId={store.currentUser?.id}
-                      assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                      onStatusUpdate={store.updateJobStatus}
-                      onReassign={() => setReassigningJob(job)}
-                      onDelete={store.deleteJob}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="rejected">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredJobs.filter(j => j.status === 'rejected').map(job => (
-                    <JobCard 
-                      key={job.id} 
-                      job={job} 
-                      role="manager" 
-                      currentUserId={store.currentUser?.id}
-                      assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                      onStatusUpdate={store.updateJobStatus}
-                      onReassign={() => setReassigningJob(job)}
-                      onDelete={store.deleteJob}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-24 glass-card rounded-3xl border-dashed border-2">
+              <History className="w-16 h-16 text-muted-foreground/20 mb-4" />
+              <p className="text-muted-foreground text-lg">No historical records found</p>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="space-y-8 animate-fade-in">
-          <div className="glass-card p-8 rounded-3xl orange-gradient text-white flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-             <div className="relative z-10">
-               <h2 className="text-3xl font-headline font-bold mb-2 text-white">Hello, {store.currentUser.name}</h2>
-               <div className="flex items-center gap-4">
-                 <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5">
-                   <Star className="w-3.5 h-3.5 fill-white" />
-                   {store.currentUser.points || 0} Points
-                 </div>
-                 <p className="text-white/80">Manage your assigned harvesting tasks here.</p>
-               </div>
-             </div>
-             <div className="flex gap-4 relative z-10">
-               <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
-                 <p className="text-xs text-white/60 uppercase tracking-widest font-bold">New</p>
-                 <p className="text-2xl font-headline font-bold">{workerJobs.filter(j => (j.workerStatuses?.[store.currentUser?.id || ''] || 'pending') === 'pending').length}</p>
-               </div>
-               <div className="bg-black/20 backdrop-blur-md px-6 py-4 rounded-2xl text-center">
-                 <p className="text-xs text-white/60 uppercase tracking-widest font-bold">Total</p>
-                 <p className="text-2xl font-headline font-bold">{workerJobs.length}</p>
-               </div>
-             </div>
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h2 className="text-2xl font-headline font-bold text-white">Job Requests</h2>
+            <div className="flex items-center gap-2">
+              {store.currentUser.role === 'manager' && <Button onClick={() => setShowCreateModal(true)} className="orange-gradient transition-all active:scale-95"><Plus className="w-4 h-4 mr-2" />New Job</Button>}
+            </div>
           </div>
 
-          <div className="space-y-6">
-            <h3 className="text-xl font-headline font-bold text-white">My Assignments</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {workerJobs.map(job => (
+          {currentOperationalJobs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {currentOperationalJobs.map(job => (
                 <JobCard 
                   key={job.id} 
                   job={job} 
-                  role="worker" 
+                  role={store.currentUser.role} 
                   currentUserId={store.currentUser?.id}
                   assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                  deliveryBoy={store.deliveryBoys.find(b => b.id === job.deliveryBoyId)}
                   onStatusUpdate={store.updateJobStatus}
+                  onReassign={setReassigningJob}
+                  onAssignDelivery={setAssigningDeliveryJob}
+                  onSetTime={setSetTimeJob}
+                  onWorkerComplete={setWorkerCompleteJob}
+                  onArchive={store.archiveJob}
+                  onDelete={store.deleteJob}
                 />
               ))}
-              {workerJobs.length === 0 && (
-                <div className="col-span-full py-20 text-center glass-card rounded-3xl">
-                   <Briefcase className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                   <p className="text-muted-foreground">No jobs assigned to you at the moment.</p>
-                </div>
-              )}
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-24 glass-card rounded-3xl border-dashed border-2 border-white/10">
+              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                <Briefcase className="w-10 h-10 text-muted-foreground/30" />
+              </div>
+              <h3 className="text-xl font-headline font-semibold text-white mb-2">Currently no job requests</h3>
+              <p className="text-muted-foreground text-center max-w-xs">
+                {store.currentUser.role === 'manager' 
+                  ? "Get started by creating a new harvesting task for your team." 
+                  : "All caught up! Check back later for new assignments."}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      <CreateJobModal 
-        isOpen={showCreateModal} 
-        onClose={() => setShowCreateModal(false)}
-        onAdd={store.addJob}
-      />
-
-      <ReassignmentModal 
-        job={reassigningJob}
-        workers={store.workers}
-        onClose={() => setReassigningJob(null)}
-        onAssign={store.reassignWorker}
-      />
+      <CreateJobModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onAdd={store.addJob} />
+      <ReassignmentModal job={reassigningJob} workers={store.workers} onClose={() => setReassigningJob(null)} onAssign={store.reassignWorker} />
+      <AssignDeliveryModal job={assigningDeliveryJob} deliveryBoys={store.deliveryBoys} onClose={() => setAssigningDeliveryJob(null)} onAssign={store.assignDeliveryBoy} />
+      <SetTimeModal job={setTimeJob} onClose={() => setSetTimeJob(null)} onConfirm={store.setHarvestTime} />
+      <WorkerCompletionModal job={workerCompleteJob} onClose={() => setWorkerCompleteJob(null)} onSubmit={store.submitHarvestReport} />
     </DashboardLayout>
   );
 }

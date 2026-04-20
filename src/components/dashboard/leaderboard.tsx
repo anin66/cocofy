@@ -107,10 +107,10 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
           <div className="p-2 rounded-xl bg-primary/10 text-primary">
             <Star className="w-5 h-5" />
           </div>
-          <h3 className="text-xl font-headline font-bold text-white">Top Workers</h3>
+          <h3 className="text-xl font-headline font-bold text-white">Workers Leaderboard</h3>
         </div>
         
-        {role === 'manager' ? (
+        {role === 'manager' && (
           <div className="flex items-center gap-2">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -137,10 +137,6 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
               <Edit2 className="w-3.5 h-3.5 mr-1.5" />
               Edit Ranking
             </Button>
-          </div>
-        ) : (
-          <div className="px-3 py-1 rounded-full bg-primary/5 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-widest">
-            Global Rankings
           </div>
         )}
       </div>

@@ -5,12 +5,15 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
   LogOut, 
-  Bell, 
   Menu, 
   X,
   Sprout,
   Trophy,
-  CloudCheck
+  Truck,
+  IndianRupee,
+  Users,
+  Contact,
+  History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -29,14 +32,14 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: SidebarItemProps) =
   <button
     onClick={onClick}
     className={cn(
-      "flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-200 group",
+      "flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all duration-200 group text-left",
       active 
         ? "bg-primary text-white shadow-lg shadow-primary/20" 
         : "text-muted-foreground hover:bg-white/5 hover:text-white"
     )}
   >
-    <Icon className={cn("w-5 h-5", active ? "text-white" : "group-hover:text-primary")} />
-    <span className="font-medium">{label}</span>
+    <Icon className={cn("w-5 h-5 shrink-0", active ? "text-white" : "group-hover:text-primary")} />
+    <span className="font-medium truncate">{label}</span>
   </button>
 );
 
@@ -51,19 +54,52 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ user, onLogout, children, activeView, onNavigate }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const navigation = user.role === 'manager' 
-    ? [
-        { id: 'dashboard', icon: LayoutDashboard, label: 'Overview' },
-        { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
-      ]
-    : [
-        { id: 'dashboard', icon: LayoutDashboard, label: 'My Jobs' },
-        { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
-      ];
+  const getNavigation = () => {
+    const base = [
+      { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
+    ];
+
+    switch (user.role) {
+      case 'manager':
+        return [
+          { id: 'dashboard', icon: LayoutDashboard, label: 'Overview' },
+          { id: 'staff', icon: Contact, label: 'Workers List' },
+          { id: 'leaderboard', icon: Trophy, label: 'Workers Ranking' },
+          { id: 'history', icon: History, label: 'Job History' },
+        ];
+      case 'finance_manager':
+        return [
+          { id: 'dashboard', icon: IndianRupee, label: 'Accounts' },
+          { id: 'leaderboard', icon: Trophy, label: 'Incentives' },
+          { id: 'history', icon: History, label: 'Harvest Records' },
+        ];
+      case 'delivery_boy':
+        return [
+          { id: 'dashboard', icon: Truck, label: 'Deliveries' },
+        ];
+      default:
+        return base;
+    }
+  };
+
+  const navigation = getNavigation();
 
   const handleNavigate = (id: string) => {
     onNavigate(id);
     setIsMobileMenuOpen(false);
+  };
+
+  const getHeaderTitle = () => {
+    if (activeView === 'leaderboard') return 'Workers Leaderboard';
+    if (activeView === 'staff') return 'Workers Directory';
+    if (activeView === 'history') return user.role === 'finance_manager' ? 'Harvest Records' : 'Job History';
+    switch (user.role) {
+      case 'manager': return 'Managers Dashboard';
+      case 'finance_manager': return 'Financial Control';
+      case 'delivery_boy': return 'Delivery Portal';
+      default: return 'Worker Portal';
+    }
   };
 
   return (
@@ -80,7 +116,7 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
           <div className="px-2">
             <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5 py-1 px-3">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              Cloud Active
+              Portal Live
             </Badge>
           </div>
         </div>
@@ -105,7 +141,7 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
             </Avatar>
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-semibold truncate text-white">{user.name}</span>
-              <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{user.role.replace('_', ' ')}</span>
             </div>
           </div>
           <Button 
@@ -129,22 +165,16 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
             >
               {isMobileMenuOpen ? <X /> : <Menu />}
             </button>
-            <h1 className="text-xl md:text-2xl font-headline font-bold">
-              {activeView === 'leaderboard' ? 'Leaderboard' : (user.role === 'manager' ? 'Manager Dashboard' : 'Worker Portal')}
+            <h1 className="text-xl md:text-2xl font-headline font-bold truncate">
+              {getHeaderTitle()}
             </h1>
           </div>
           
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex mr-2">
-              <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                Live
-              </Badge>
-            </div>
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background"></span>
-            </Button>
+            <Badge variant="outline" className="hidden sm:flex bg-green-500/10 text-green-500 border-green-500/20 gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              System Active
+            </Badge>
           </div>
         </header>
 

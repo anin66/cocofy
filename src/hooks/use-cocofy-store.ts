@@ -1,23 +1,35 @@
+
 'use client';
 
 import { useState } from 'react';
-import { Job, UserProfile, JobStatus, Role } from '@/lib/types';
+import { Job, UserProfile, JobStatus, Role, HarvestReport } from '@/lib/types';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { 
   collection, 
   doc, 
   setDoc, 
   getDoc,
-  runTransaction 
+  deleteDoc,
+  increment
 } from 'firebase/firestore';
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signOut 
+  signOut
 } from 'firebase/auth';
-import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+// Administrative security keys
+const ADMIN_SECURITY_KEYS = {
+  manager: 'COCO-ADMIN-2024',
+  finance_manager: 'COCO-FINANCE-2024'
+};
+
+const ADMIN_EMAIL = 'shaheenmkd2025@gmail.com';
 
 export function useCocofyStore() {
   const { user: authUser, isUserLoading: isAuthLoading } = useUser();
@@ -57,9 +69,13 @@ export function useCocofyStore() {
 
   const allUsers = usersData || [];
   
-  // Sort workers by points locally for the leaderboard
+  // Explicitly separate workers and delivery boys
   const workers = allUsers
     .filter(u => u.role === 'worker')
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
+
+  const deliveryBoys = allUsers
+    .filter(u => u.role === 'delivery_boy')
     .sort((a, b) => (b.points || 0) - (a.points || 0));
 
   const login = async (targetRole: Role, email?: string, password?: string) => {
@@ -67,57 +83,60 @@ export function useCocofyStore() {
     
     setIsAuthenticating(true);
     try {
-      // 1. Authenticate with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
-      // 2. Fetch the profile from Firestore to check the role immediately
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       const userSnap = await getDoc(userDocRef);
       
+      const normalizedEmail = email.toLowerCase();
+
+      // IF THE PROFILE IS MISSING, ACCESS IS DENIED
       if (!userSnap.exists()) {
-        await signOut(auth);
         toast({
           variant: "destructive",
-          title: "Login Failed",
-          description: "User profile not found in database.",
+          title: "Access Revoked",
+          description: "Your staff profile has been removed by a manager.",
         });
-        return;
-      }
-
-      const profile = userSnap.data() as UserProfile;
-
-      // 3. Verify the role matches the portal the user is trying to use
-      if (profile.role !== targetRole) {
-        // Log out immediately to prevent unauthorized dashboard access
         await signOut(auth);
-        toast({
-          variant: "destructive",
-          title: "Access Denied",
-          description: `This account is registered as a ${profile.role}. Please log in through the ${profile.role} portal.`,
-        });
         return;
-      }
+      } else {
+        const profile = userSnap.data() as UserProfile;
+        
+        // Admin Force-Correct Role
+        if (normalizedEmail === ADMIN_EMAIL && profile.role !== 'manager') {
+          await setDoc(userDocRef, { ...profile, role: 'manager' }, { merge: true });
+          profile.role = 'manager';
+        }
 
-      toast({
-        title: "Signed In",
-        description: `Welcome back, ${profile.name}!`,
-      });
+        if (normalizedEmail === ADMIN_EMAIL && targetRole !== 'manager') {
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "Administrative accounts must use the Manager portal.",
+          });
+          await signOut(auth);
+          return;
+        }
+
+        if (normalizedEmail !== ADMIN_EMAIL && profile.role !== targetRole) {
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: `This account is registered as a ${profile.role.replace('_', ' ')}.`,
+          });
+          await signOut(auth);
+          return;
+        }
+        
+        toast({
+          title: "Logged In",
+          description: `Welcome back, ${profile.name}!`,
+        });
+      }
     } catch (error: any) {
-      let message = "An error occurred during sign in.";
-      
-      // Handle specific Firebase Auth error codes for cleaner UI feedback
-      if (error.code === 'auth/user-not-found') {
-        message = "Email is not registered.";
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        message = "Email or password incorrect.";
-      } else if (error.code === 'auth/invalid-email') {
-        message = "Invalid email format.";
-      }
-      
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description: message,
+        title: "Login Error",
+        description: error.message || "Failed to sign in.",
       });
     } finally {
       setIsAuthenticating(false);
@@ -127,37 +146,53 @@ export function useCocofyStore() {
   const signup = async (userData: any) => {
     if (!userData.email || !userData.password || isAuthenticating) return;
     
+    const normalizedEmail = userData.email.toLowerCase();
+    const isSpecialAdmin = normalizedEmail === ADMIN_EMAIL;
+
+    if (!isSpecialAdmin && (userData.role === 'manager' || userData.role === 'finance_manager')) {
+      const expectedKey = ADMIN_SECURITY_KEYS[userData.role as keyof typeof ADMIN_SECURITY_KEYS];
+      if (userData.secretKey !== expectedKey) {
+        toast({
+          variant: "destructive",
+          title: "Authorization Failed",
+          description: "Incorrect security key.",
+        });
+        return;
+      }
+    }
+
     setIsAuthenticating(true);
+
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+      
       const newUser: UserProfile = {
         id: userCredential.user.uid,
         name: userData.name || 'New User',
-        email: userData.email,
-        role: userData.role || 'worker',
+        email: normalizedEmail,
+        role: isSpecialAdmin ? 'manager' : (userData.role || 'worker'),
         phone: userData.phone || '',
         dob: userData.dob || '',
         skills: [],
         availability: 'Available',
+        currentStatus: 'Free for Work',
         points: 0,
         acceptedJobs: 0,
-        rejectedJobs: 0
+        rejectedJobs: 0,
+        createdAt: new Date().toISOString()
       };
+
+      await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
       
-      await setDoc(doc(db, 'users', newUser.id), newUser);
       toast({
         title: "Account Created",
-        description: `Welcome to Cocofy, ${userData.name}!`,
+        description: `Welcome, ${userData.name}!`,
       });
     } catch (error: any) {
-      let message = "An error occurred during sign up.";
-      if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered.";
-      }
       toast({
         variant: "destructive",
-        title: "Signup Failed",
-        description: message,
+        title: "Signup Error",
+        description: error.message || "Could not create account.",
       });
     } finally {
       setIsAuthenticating(false);
@@ -165,17 +200,11 @@ export function useCocofyStore() {
   };
 
   const logout = () => {
-    signOut(auth).then(() => {
-      toast({
-        title: "Signed Out",
-        description: "Your session has ended securely.",
-      });
-    });
+    signOut(auth);
   };
 
   const addJob = (jobData: any) => {
     if (!db || !currentUser) return;
-    
     const newJobData = {
       ...jobData,
       managerId: currentUser.id,
@@ -184,159 +213,168 @@ export function useCocofyStore() {
       workerStatuses: {},
       createdAt: new Date().toISOString()
     };
-    
     addDocumentNonBlocking(collection(db, 'jobs'), newJobData);
-    toast({
-      title: "Job Created",
-      description: `Job for ${jobData.customerName} saved as unconfirmed.`,
-    });
   };
 
-  const updateJobStatus = async (jobId: string, status: JobStatus) => {
+  const updateJobStatus = (jobId: string, status: JobStatus) => {
     if (!db || !currentUser) return;
-
-    if (currentUser.role === 'worker') {
-      try {
-        await runTransaction(db, async (transaction) => {
-          const jobRef = doc(db, 'jobs', jobId);
-          const userRef = doc(db, 'users', currentUser.id);
-          
-          const jobDoc = await transaction.get(jobRef);
-          const userDoc = await transaction.get(userRef);
-          
-          if (!jobDoc.exists() || !userDoc.exists()) {
-            throw new Error("Document does not exist!");
-          }
-
-          const jobData = jobDoc.data() as Job;
-          const userData = userDoc.data() as UserProfile;
-
-          // Check if worker already has a final status for this job to prevent duplicate points
-          const prevStatus = jobData.workerStatuses?.[currentUser.id];
-          if (prevStatus && prevStatus !== 'pending') {
-            const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
-            transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
-            return;
-          }
-
-          let pointsChange = 0;
-          let acceptedChange = 0;
-          let rejectedChange = 0;
-
-          if (status === 'accepted') {
-            pointsChange = 10;
-            acceptedChange = 1;
-          } else if (status === 'rejected') {
-            pointsChange = -5;
-            rejectedChange = 1;
-          }
-
-          const newPoints = Math.max(0, (userData.points || 0) + pointsChange);
-          const newAccepted = (userData.acceptedJobs || 0) + acceptedChange;
-          const newRejected = (userData.rejectedJobs || 0) + rejectedChange;
-
-          const newWorkerStatuses = { ...jobData.workerStatuses, [currentUser.id]: status };
-          
-          transaction.update(jobRef, { workerStatuses: newWorkerStatuses });
-          transaction.update(userRef, {
-            points: newPoints,
-            acceptedJobs: newAccepted,
-            rejectedJobs: newRejected
-          });
-        });
-
-        toast({
-          title: "Status Updated",
-          description: `Status updated to ${status}. Points updated.`,
-        });
-      } catch (e) {
-        toast({
-          variant: "destructive",
-          title: "Update Failed",
-          description: "Could not update status or points.",
-        });
-      }
-    } else {
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { status });
-      toast({
-        title: "Status Updated",
-        description: `Status updated to ${status}.`,
-      });
-    }
-  };
-
-  const resetRankings = () => {
-    if (!db || !currentUser || currentUser.role !== 'manager') return;
-    
-    workers.forEach(worker => {
-      updateDocumentNonBlocking(doc(db, 'users', worker.id), {
-        points: 0,
-        acceptedJobs: 0,
-        rejectedJobs: 0
-      });
-    });
-
-    toast({
-      title: "Rankings Reset",
-      description: "All worker statistics have been reset to zero.",
-    });
-  };
-
-  const updateWorkerStats = (workerId: string, stats: Partial<UserProfile>) => {
-    if (!db || !currentUser || currentUser.role !== 'manager') return;
-    
-    updateDocumentNonBlocking(doc(db, 'users', workerId), stats);
-    toast({
-      title: "Worker Updated",
-      description: "Statistics updated successfully.",
-    });
-  };
-
-  const reassignWorker = (jobId: string, workerIds: string[]) => {
-    if (!db) return;
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
 
-    const newWorkerStatuses: Record<string, JobStatus> = {};
-    workerIds.forEach(id => {
-      newWorkerStatuses[id] = job.workerStatuses?.[id] || 'pending';
-    });
+    // Default updates to the new status
+    const updates: any = { status };
 
-    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
-      assignedWorkerIds: workerIds, 
-      workerStatuses: newWorkerStatuses,
-      status: 'pending' 
-    });
+    // If a worker is accepting/rejecting, do NOT overwrite the global status unless it's a team transition
+    if (currentUser.role === 'worker' && (status === 'accepted' || status === 'rejected')) {
+      const newWorkerStatuses = { ...job.workerStatuses, [currentUser.id]: status };
+      updates.workerStatuses = newWorkerStatuses;
+      
+      // Keep global status as 'pending' unless confirmed
+      updates.status = 'pending';
 
-    toast({
-      title: "Workers Assigned",
-      description: `${workerIds.length} worker(s) assigned.`,
-    });
-  };
+      const acceptedCount = Object.values(newWorkerStatuses).filter(s => s === 'accepted').length;
+      const totalAssigned = job.assignedWorkerIds?.length || 0;
+      
+      // ONLY flip to confirmed when ALL assigned workers have accepted
+      if (totalAssigned > 0 && acceptedCount === totalAssigned) {
+        updates.status = 'confirmed';
+      }
 
-  const deleteJob = (jobId: string) => {
-    if (!db) return;
-    deleteDocumentNonBlocking(doc(db, 'jobs', jobId));
-    toast({
-      title: "Job Removed",
-      description: "Job has been deleted.",
-    });
+      if (status === 'accepted') {
+        updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { points: increment(10), acceptedJobs: increment(1) });
+      } else {
+        updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { points: increment(-5), rejectedJobs: increment(1) });
+      }
+    }
+
+    if (currentUser.role === 'delivery_boy') {
+      if (status === 'delivery_pickup_started') {
+        updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { currentStatus: 'Currently Working' });
+      } else if (status === 'delivery_destination_reached') {
+        // We no longer mark the delivery boy as free here if the team is still working.
+        // He will be marked free when the entire job completes in submitHarvestReport.
+        updates.deliveryDone = true;
+      } else if (status === 'delivery_assigned' && !job.deliveryConfirmedByBoy) {
+        updates.deliveryConfirmedByBoy = true;
+      }
+    }
+
+    // SYNC TEAM STATUS: When harvest starts, everyone on the team is marked as "Working"
+    if (status === 'harvest_started') {
+      const teamIds = new Set([
+        ...(job.assignedWorkerIds || []),
+        ...Object.keys(job.workerStatuses || {}),
+        job.deliveryBoyId
+      ].filter(Boolean));
+      
+      teamIds.forEach(workerId => {
+        updateDocumentNonBlocking(doc(db, 'users', workerId as string), { currentStatus: 'Currently Working' });
+      });
+    }
+
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
   };
 
   return {
     jobs,
     currentUser,
     workers,
+    deliveryBoys,
     isAuthenticating,
     isUserLoading: isAuthLoading || isProfileLoading || isUsersLoading || isJobsLoading,
     login,
     logout,
     addJob,
     updateJobStatus,
-    reassignWorker,
+    setHarvestTime: (jobId: string, time: string) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { harvestTime: time });
+    },
+    assignDeliveryBoy: (jobId: string, data: { deliveryBoyId: string, deliveryTime: string, gpsUrl: string }) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+        ...data,
+        status: 'delivery_assigned',
+        deliveryConfirmedByBoy: false,
+        deliveryDone: false
+      });
+    },
+    reassignWorker: (jobId: string, workerIds: string[]) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+        assignedWorkerIds: workerIds,
+        status: 'pending' 
+      });
+    },
+    requestDeliveryCheck: (jobId: string) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { deliveryCheckRequested: true });
+    },
+    requestHarvestCheck: (jobId: string) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { harvestCheckRequested: true });
+    },
+    submitHarvestReport: (jobId: string, trees: number, notes?: string) => {
+      if (!db || !currentUser) return;
+      const job = jobs.find(j => j.id === jobId);
+      if (!job) return;
+
+      const report: HarvestReport = {
+        trees,
+        notes,
+        timestamp: new Date().toISOString()
+      };
+
+      const newReports = {
+        ...(job.workerHarvestReports || {}),
+        [currentUser.id]: report
+      };
+
+      const updates: any = { workerHarvestReports: newReports };
+      
+      const reportsCount = Object.keys(newReports).length;
+      const totalRequired = job.assignedWorkerIds?.length || 1;
+
+      // ONLY mark free when the whole job is completed
+      if (reportsCount >= totalRequired) {
+        updates.harvestDone = true;
+        updates.status = 'completed';
+        
+        // Reset all team members to free for work when the whole job is done
+        const teamIds = new Set([
+          ...(job.assignedWorkerIds || []),
+          ...Object.keys(job.workerStatuses || {}),
+          job.deliveryBoyId
+        ].filter(Boolean));
+
+        teamIds.forEach(workerId => {
+          updateDocumentNonBlocking(doc(db, 'users', workerId as string), { currentStatus: 'Free for Work' });
+        });
+      }
+
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
+      toast({ title: "Report Submitted", description: "Harvest data recorded." });
+    },
+    archiveJob: (jobId: string) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { archived: true });
+    },
     signup,
-    deleteJob,
-    resetRankings,
-    updateWorkerStats
+    deleteJob: (jobId: string) => {
+      if (!db) return;
+      deleteDoc(doc(db, 'jobs', jobId));
+    },
+    deleteStaff: (userId: string) => {
+      if (!db) return;
+      deleteDoc(doc(db, 'users', userId));
+    },
+    resetRankings: () => {
+      allUsers.forEach(w => updateDocumentNonBlocking(doc(db, 'users', w.id), { points: 0, acceptedJobs: 0, rejectedJobs: 0 }));
+    },
+    updateWorkerStats: (id: string, stats: Partial<UserProfile>) => {
+      if (!db) return;
+      updateDocumentNonBlocking(doc(db, 'users', id), stats);
+    },
+    authUser
   };
 }
