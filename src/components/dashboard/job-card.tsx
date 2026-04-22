@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -22,8 +23,8 @@ import {
   Navigation,
   Play,
   Dot,
-  Check,
-  ExternalLink
+  ExternalLink,
+  IndianRupee
 } from 'lucide-react';
 import { Job, JobStatus, Role, UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +62,7 @@ interface JobCardProps {
   onDelete?: (id: string) => void;
   onWorkerComplete?: (job: Job) => void;
   onArchive?: (id: string) => void;
+  onSettlePayment?: (job: Job) => void;
 }
 
 const statusConfig = {
@@ -88,7 +90,8 @@ export function JobCard({
   onSetTime, 
   onDelete,
   onWorkerComplete,
-  onArchive
+  onArchive,
+  onSettlePayment
 }: JobCardProps) {
   const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
 
@@ -104,16 +107,18 @@ export function JobCard({
   const totalAssignedCount = job.assignedWorkerIds?.length || 0;
   const isTeamComplete = totalAssignedCount > 0 && acceptedWorkers.length >= totalAssignedCount;
   
-  let effectiveStatus = job.status;
-  if (job.status === 'pending' && isTeamComplete) {
-    effectiveStatus = 'confirmed';
+  const displayStatus = optimisticStatus || job.status;
+  
+  let badgeStatusKey = displayStatus;
+  if (displayStatus === 'pending' && isTeamComplete) {
+    badgeStatusKey = 'confirmed';
   }
   
-  const individualStatus = role === 'worker' && currentUserId 
-    ? (optimisticStatus || job.workerStatuses?.[currentUserId] || 'pending') 
-    : (optimisticStatus || effectiveStatus);
+  if (role === 'worker' && currentUserId && (displayStatus === 'pending' || displayStatus === 'confirmed')) {
+    badgeStatusKey = job.workerStatuses?.[currentUserId] || 'pending';
+  }
 
-  const status = statusConfig[individualStatus] || statusConfig.pending;
+  const status = statusConfig[badgeStatusKey as keyof typeof statusConfig] || statusConfig.pending;
   const StatusIcon = status.icon;
 
   const handleAction = (newStatus: JobStatus) => {
@@ -121,26 +126,27 @@ export function JobCard({
     onStatusUpdate?.(job.id, newStatus);
   };
 
-  const isWorker = role === 'worker';
   const isAdmin = role === 'manager' || role === 'finance_manager';
   const isDelivery = role === 'delivery_boy';
+  const isWorker = role === 'worker';
+  const isFinance = role === 'finance_manager';
   
   const canSeeContact = isAdmin || isDelivery;
   const canSeeLocation = isAdmin || isDelivery;
-  
-  const logisticsConfirmed = job.deliveryConfirmedByBoy;
 
   return (
     <Card className={cn(
       "glass-card overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 animate-fade-in flex flex-col min-h-[160px]",
-      job.archived && "opacity-50 grayscale"
+      job.archived && !isFinance && "opacity-50 grayscale"
     )}>
       <CardHeader className="p-3 pb-1 space-y-1">
         <div className="flex justify-between items-start w-full">
-           <Badge className={cn("px-2 py-0.5 border text-[10px] font-bold flex gap-1.5 items-center max-w-fit truncate", status.color)} variant="outline">
-              <StatusIcon className="w-3 h-3 shrink-0" />
-              <span className="truncate uppercase tracking-widest">{status.label}</span>
-           </Badge>
+           <div className="flex gap-2">
+              <Badge className={cn("px-2 py-0.5 border text-[10px] font-bold flex gap-1.5 items-center max-w-fit truncate", status.color)} variant="outline">
+                <StatusIcon className="w-3 h-3 shrink-0" />
+                <span className="truncate uppercase tracking-widest">{status.label}</span>
+              </Badge>
+           </div>
            <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <UIButton variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-white">
@@ -204,62 +210,34 @@ export function JobCard({
 
         {totalAssignedCount > 0 && (
           <div className="pt-2 border-t border-white/5 space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">ASSIGNED WORKERS</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">ASSIGNED WORKERS & HARVEST</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
               {assignedWorkers.map(worker => {
                 const wStatus = job.workerStatuses?.[worker.id] || 'pending';
+                const harvestReport = job.workerHarvestReports?.[worker.id];
                 return (
-                  <div key={worker.id} className="flex items-center gap-1">
-                    <span className="text-xs text-white/80">{worker.name}</span>
-                    <Badge variant="outline" className={cn(
-                      "h-4 px-1 text-[9px] uppercase font-bold border-none bg-transparent flex items-center p-0",
-                      wStatus === 'accepted' ? "text-green-400" : 
-                      wStatus === 'rejected' ? "text-accent" : 
-                      "text-yellow-500"
-                    )}>
-                      <Dot className={cn("w-4 h-4", wStatus === 'accepted' ? "text-green-400" : wStatus === 'rejected' ? "text-accent" : "text-yellow-500")} />
-                      {wStatus}
-                    </Badge>
+                  <div key={worker.id} className="flex flex-col gap-0.5 min-w-[120px]">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-white/80 font-medium">{worker.name}</span>
+                      <Badge variant="outline" className={cn(
+                        "h-4 px-1 text-[8px] uppercase font-bold border-none bg-transparent flex items-center p-0",
+                        wStatus === 'accepted' ? "text-green-400" : 
+                        wStatus === 'rejected' ? "text-accent" : 
+                        "text-yellow-500"
+                      )}>
+                        <Dot className={cn("w-3 h-3", wStatus === 'accepted' ? "text-green-400" : wStatus === 'rejected' ? "text-accent" : "text-yellow-500")} />
+                        {wStatus}
+                      </Badge>
+                    </div>
+                    {harvestReport && (
+                      <div className="flex items-center gap-1.5 pl-1">
+                        <TreePalm className="w-3 h-3 text-primary" />
+                        <span className="text-[11px] font-bold text-primary">{harvestReport.trees} Trees</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {isAdmin && job.workerHarvestReports && Object.keys(job.workerHarvestReports).length > 0 && (
-          <div className="pt-2 border-t border-white/5 space-y-2">
-             <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Harvest Performance</p>
-             <div className="grid grid-cols-2 gap-3">
-                {assignedWorkers.map(worker => {
-                  const report = job.workerHarvestReports?.[worker.id];
-                  if (!report) return null;
-                  return (
-                    <div key={worker.id} className="flex flex-col p-2 rounded-xl bg-white/5 border border-white/5">
-                       <span className="text-[10px] text-muted-foreground truncate">{worker.name}</span>
-                       <div className="flex items-center gap-1.5">
-                         <span className="text-sm font-bold text-white">{report.trees} Trees</span>
-                         <Check className="w-4 h-4 text-green-500" />
-                       </div>
-                    </div>
-                  );
-                })}
-             </div>
-          </div>
-        )}
-
-        {isWorker && logisticsConfirmed && (
-          <div className="pt-2 border-t border-white/10 space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Delivery Boy</p>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-orange-500" />
-                <span className="text-white text-sm">{deliveryBoy?.name || 'Assigned'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-orange-500" />
-                <span className="text-white text-sm font-bold">{job.deliveryTime}</span>
-              </div>
             </div>
           </div>
         )}
@@ -302,15 +280,16 @@ export function JobCard({
       </CardContent>
 
       <CardFooter className="p-4 pt-0 gap-3">
-        {role === 'manager' && job.status === 'unconfirmed' && (
+        {/* Manager Actions */}
+        {role === 'manager' && displayStatus === 'unconfirmed' && (
           <UIButton className="w-full orange-gradient h-12 text-base font-bold" onClick={() => handleAction('pending')}>Confirm Order</UIButton>
         )}
 
-        {role === 'manager' && job.status === 'pending' && !job.harvestTime && (
+        {role === 'manager' && displayStatus === 'pending' && !job.harvestTime && (
           <UIButton className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 text-base" onClick={() => onSetTime?.(job)}>Set Harvest Time</UIButton>
         )}
 
-        {role === 'manager' && job.status === 'pending' && job.harvestTime && (
+        {role === 'manager' && displayStatus === 'pending' && job.harvestTime && (
           !totalAssignedCount ? (
             <UIButton className="w-full bg-green-600 hover:bg-green-700 text-white font-bold gap-2 h-12 text-base" onClick={() => onReassign?.(job)}>
               <UserPlus className="w-5 h-5" /> Assign Team
@@ -326,47 +305,60 @@ export function JobCard({
           ) : null
         )}
 
-        {role === 'manager' && effectiveStatus === 'confirmed' && !job.archived && (
+        {role === 'manager' && (displayStatus === 'confirmed' || displayStatus === 'pending' && isTeamComplete) && !job.archived && !job.deliveryBoyId && (
            <UIButton className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold gap-2 h-12 text-base" onClick={() => onAssignDelivery?.(job)}>
             <Truck className="w-5 h-5" /> Assign Delivery Boy
            </UIButton>
         )}
 
-        {role === 'manager' && job.status === 'completed' && !job.archived && (
+        {role === 'manager' && displayStatus === 'completed' && !job.archived && (
            <UIButton className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold gap-2 h-12 text-base border border-white/10" onClick={() => onArchive?.(job.id)}>
             <Archive className="w-5 h-5" /> Archive to History
            </UIButton>
         )}
 
-        {role === 'delivery_boy' && individualStatus === 'delivery_assigned' && !job.deliveryConfirmedByBoy && (
+        {/* Finance Manager Actions */}
+        {role === 'finance_manager' && displayStatus === 'completed' && !job.settledAt && (
+           <UIButton className="w-full orange-gradient h-12 text-base font-bold gap-2" onClick={() => onSettlePayment?.(job)}>
+            <IndianRupee className="w-5 h-5" /> Settle Payment
+           </UIButton>
+        )}
+
+        {/* Delivery Boy Actions */}
+        {role === 'delivery_boy' && displayStatus === 'delivery_assigned' && !job.deliveryConfirmedByBoy && (
            <UIButton className="w-full orange-gradient h-12 text-base font-bold" onClick={() => handleAction('delivery_assigned')}>Accept Task</UIButton>
         )}
 
-        {role === 'delivery_boy' && job.deliveryConfirmedByBoy && job.status === 'delivery_assigned' && (
+        {role === 'delivery_boy' && job.deliveryConfirmedByBoy && displayStatus === 'delivery_assigned' && (
            <UIButton className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold gap-2 h-12 text-base" onClick={() => handleAction('delivery_pickup_started')}>
             <Navigation className="w-5 h-5" /> Pickup Started
            </UIButton>
         )}
 
-        {role === 'delivery_boy' && job.status === 'delivery_pickup_started' && (
+        {role === 'delivery_boy' && displayStatus === 'delivery_pickup_started' && (
            <UIButton className="w-full bg-green-600 hover:bg-green-700 text-white font-bold gap-2 h-12 text-base" onClick={() => handleAction('delivery_destination_reached')}>
             <MapPin className="w-5 h-5" /> Arrived at Site
            </UIButton>
         )}
 
-        {role === 'worker' && job.status === 'delivery_destination_reached' && job.workerStatuses?.[currentUserId || ''] === 'accepted' && (
-           <UIButton className="w-full orange-gradient gap-2 h-12 text-base font-bold" onClick={() => handleAction('harvest_started')}>
-            <Play className="w-5 h-5" /> Start Harvest
-           </UIButton>
+        {/* Worker Actions */}
+        {role === 'worker' && job.workerStatuses?.[currentUserId || ''] === 'accepted' && (
+          <div className="w-full flex flex-col gap-2">
+            {displayStatus === 'delivery_destination_reached' && (
+               <UIButton className="w-full orange-gradient gap-2 h-12 text-base font-bold" onClick={() => handleAction('harvest_started')}>
+                <Play className="w-5 h-5" /> Start Harvest
+               </UIButton>
+            )}
+
+            {(displayStatus === 'harvest_started' || displayStatus === 'completed') && !job.workerHarvestReports?.[currentUserId || ''] && (
+               <UIButton className="w-full bg-green-600 hover:bg-green-700 text-white font-bold gap-2 h-12 text-base" onClick={() => onWorkerComplete?.(job)}>
+                <ClipboardCheck className="w-5 h-5" /> Complete Job
+               </UIButton>
+            )}
+          </div>
         )}
 
-        {role === 'worker' && job.status === 'harvest_started' && !job.workerHarvestReports?.[currentUserId || ''] && (
-           <UIButton className="w-full bg-green-600 hover:bg-green-700 text-white font-bold gap-2 h-12 text-base" onClick={() => onWorkerComplete?.(job)}>
-            <ClipboardCheck className="w-5 h-5" /> Complete Job
-           </UIButton>
-        )}
-
-        {role === 'worker' && individualStatus === 'pending' && (
+        {role === 'worker' && !['completed', 'archived'].includes(displayStatus) && job.workerStatuses?.[currentUserId || ''] !== 'accepted' && job.workerStatuses?.[currentUserId || ''] !== 'rejected' && (
           <div className="flex w-full gap-3">
             <UIButton className="flex-1 orange-gradient h-12 text-base font-bold" onClick={() => handleAction('accepted')}>Accept</UIButton>
             <AlertDialog>

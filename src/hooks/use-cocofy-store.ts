@@ -2,15 +2,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Job, UserProfile, JobStatus, Role, HarvestReport } from '@/lib/types';
+import { Job, UserProfile, JobStatus, Role, HarvestReport, PricingPreset, PaymentStatus, PaymentMethod, WorkerPaymentInfo } from '@/lib/types';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { 
   collection, 
   doc, 
   setDoc, 
   getDoc,
-  deleteDoc,
-  increment
+  increment,
+  arrayUnion,
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -18,10 +18,8 @@ import {
   createUserWithEmailAndPassword, 
   signOut
 } from 'firebase/auth';
-import { updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 // Administrative security keys
 const ADMIN_SECURITY_KEYS = {
@@ -59,6 +57,13 @@ export function useCocofyStore() {
     return collection(db, 'users');
   }, [db, authUser]);
   const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
+
+  // Presets Query
+  const presetsCollection = useMemoFirebase(() => {
+    if (!db || !authUser) return null;
+    return collection(db, 'presets');
+  }, [db, authUser]);
+  const { data: presetsData, isLoading: isPresetsLoading } = useCollection<PricingPreset>(presetsCollection);
   
   // Local sorting for jobs
   const jobs = (jobsData || []).sort((a, b) => {
@@ -69,7 +74,6 @@ export function useCocofyStore() {
 
   const allUsers = usersData || [];
   
-  // Explicitly separate workers and delivery boys
   const workers = allUsers
     .filter(u => u.role === 'worker')
     .sort((a, b) => (b.points || 0) - (a.points || 0));
@@ -77,6 +81,18 @@ export function useCocofyStore() {
   const deliveryBoys = allUsers
     .filter(u => u.role === 'delivery_boy')
     .sort((a, b) => (b.points || 0) - (a.points || 0));
+
+  const managers = allUsers
+    .filter(u => u.role === 'manager' || u.role === 'finance_manager')
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const presets = (presetsData || []).sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  const activePreset = presets[0] || { id: 'default', totalPricePerTree: 50, workerPayPerTree: 20 };
 
   const login = async (targetRole: Role, email?: string, password?: string) => {
     if (!email || !password || isAuthenticating) return;
@@ -89,7 +105,6 @@ export function useCocofyStore() {
       
       const normalizedEmail = email.toLowerCase();
 
-      // IF THE PROFILE IS MISSING, ACCESS IS DENIED
       if (!userSnap.exists()) {
         toast({
           variant: "destructive",
@@ -101,7 +116,6 @@ export function useCocofyStore() {
       } else {
         const profile = userSnap.data() as UserProfile;
         
-        // Admin Force-Correct Role
         if (normalizedEmail === ADMIN_EMAIL && profile.role !== 'manager') {
           await setDoc(userDocRef, { ...profile, role: 'manager' }, { merge: true });
           profile.role = 'manager';
@@ -211,7 +225,9 @@ export function useCocofyStore() {
       status: 'unconfirmed',
       assignedWorkerIds: [],
       workerStatuses: {},
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      presetId: jobData.presetId || activePreset.id,
+      paymentStatus: 'unpaid'
     };
     addDocumentNonBlocking(collection(db, 'jobs'), newJobData);
   };
@@ -221,23 +237,23 @@ export function useCocofyStore() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
 
-    // Default updates to the new status
     const updates: any = { status };
 
-    // If a worker is accepting/rejecting, do NOT overwrite the global status unless it's a team transition
+    // Worker acceptance/rejection
     if (currentUser.role === 'worker' && (status === 'accepted' || status === 'rejected')) {
       const newWorkerStatuses = { ...job.workerStatuses, [currentUser.id]: status };
       updates.workerStatuses = newWorkerStatuses;
       
-      // Keep global status as 'pending' unless confirmed
-      updates.status = 'pending';
-
-      const acceptedCount = Object.values(newWorkerStatuses).filter(s => s === 'accepted').length;
-      const totalAssigned = job.assignedWorkerIds?.length || 0;
-      
-      // ONLY flip to confirmed when ALL assigned workers have accepted
-      if (totalAssigned > 0 && acceptedCount === totalAssigned) {
-        updates.status = 'confirmed';
+      if (['pending', 'confirmed', 'unconfirmed'].includes(job.status)) {
+        updates.status = 'pending';
+        const acceptedCount = Object.values(newWorkerStatuses).filter(s => s === 'accepted').length;
+        const totalAssigned = job.assignedWorkerIds?.length || 0;
+        
+        if (totalAssigned > 0 && acceptedCount === totalAssigned) {
+          updates.status = 'confirmed';
+        }
+      } else {
+        delete updates.status;
       }
 
       if (status === 'accepted') {
@@ -251,15 +267,12 @@ export function useCocofyStore() {
       if (status === 'delivery_pickup_started') {
         updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { currentStatus: 'Currently Working' });
       } else if (status === 'delivery_destination_reached') {
-        // We no longer mark the delivery boy as free here if the team is still working.
-        // He will be marked free when the entire job completes in submitHarvestReport.
         updates.deliveryDone = true;
       } else if (status === 'delivery_assigned' && !job.deliveryConfirmedByBoy) {
         updates.deliveryConfirmedByBoy = true;
       }
     }
 
-    // SYNC TEAM STATUS: When harvest starts, everyone on the team is marked as "Working"
     if (status === 'harvest_started') {
       const teamIds = new Set([
         ...(job.assignedWorkerIds || []),
@@ -280,39 +293,39 @@ export function useCocofyStore() {
     currentUser,
     workers,
     deliveryBoys,
+    managers,
+    presets,
+    activePreset,
     isAuthenticating,
-    isUserLoading: isAuthLoading || isProfileLoading || isUsersLoading || isJobsLoading,
+    isUserLoading: isAuthLoading || isProfileLoading || isUsersLoading || isJobsLoading || isPresetsLoading,
     login,
     logout,
     addJob,
     updateJobStatus,
-    setHarvestTime: (jobId: string, time: string) => {
+    setHarvestTime: (jobId: string, time: string, presetId: string) => {
       if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { harvestTime: time });
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+        harvestTime: time,
+        presetId: presetId
+      });
     },
     assignDeliveryBoy: (jobId: string, data: { deliveryBoyId: string, deliveryTime: string, gpsUrl: string }) => {
       if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+      const updates = { 
         ...data,
-        status: 'delivery_assigned',
+        status: 'delivery_assigned' as JobStatus,
         deliveryConfirmedByBoy: false,
         deliveryDone: false
-      });
+      };
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
     },
     reassignWorker: (jobId: string, workerIds: string[]) => {
       if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+      const updates = { 
         assignedWorkerIds: workerIds,
-        status: 'pending' 
-      });
-    },
-    requestDeliveryCheck: (jobId: string) => {
-      if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { deliveryCheckRequested: true });
-    },
-    requestHarvestCheck: (jobId: string) => {
-      if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { harvestCheckRequested: true });
+        status: 'pending' as JobStatus
+      };
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
     },
     submitHarvestReport: (jobId: string, trees: number, notes?: string) => {
       if (!db || !currentUser) return;
@@ -330,17 +343,23 @@ export function useCocofyStore() {
         [currentUser.id]: report
       };
 
-      const updates: any = { workerHarvestReports: newReports };
+      const newPaymentStatuses = {
+        ...(job.workerPaymentStatuses || {}),
+        [currentUser.id]: { status: 'unpaid' as PaymentStatus }
+      };
+
+      const updates: any = { 
+        workerHarvestReports: newReports,
+        workerPaymentStatuses: newPaymentStatuses
+      };
       
       const reportsCount = Object.keys(newReports).length;
       const totalRequired = job.assignedWorkerIds?.length || 1;
 
-      // ONLY mark free when the whole job is completed
       if (reportsCount >= totalRequired) {
         updates.harvestDone = true;
         updates.status = 'completed';
         
-        // Reset all team members to free for work when the whole job is done
         const teamIds = new Set([
           ...(job.assignedWorkerIds || []),
           ...Object.keys(job.workerStatuses || {}),
@@ -355,6 +374,40 @@ export function useCocofyStore() {
       updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
       toast({ title: "Report Submitted", description: "Harvest data recorded." });
     },
+    updatePaymentStatus: (jobId: string, paymentData: Partial<Job>) => {
+      if (!db) return;
+      
+      const { paymentScreenshots, ...rest } = paymentData;
+      const updates: any = {
+        ...rest,
+        settledAt: new Date().toISOString()
+      };
+
+      if (paymentScreenshots && paymentScreenshots.length > 0) {
+        updates.paymentScreenshots = arrayUnion(...paymentScreenshots);
+      }
+
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
+      toast({ title: "Payment Recorded", description: "The accounts have been updated." });
+    },
+    payWorkerSalary: (jobId: string, workerId: string, method: PaymentMethod, proofUrl: string) => {
+      if (!db) return;
+      const job = jobs.find(j => j.id === jobId);
+      if (!job) return;
+
+      const newPaymentStatuses = {
+        ...(job.workerPaymentStatuses || {}),
+        [workerId]: {
+          status: 'fully_paid' as PaymentStatus,
+          method: method,
+          proof: proofUrl,
+          paidAt: new Date().toISOString()
+        }
+      };
+
+      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { workerPaymentStatuses: newPaymentStatuses });
+      toast({ title: "Salary Settled", description: "The worker's salary has been marked as paid." });
+    },
     archiveJob: (jobId: string) => {
       if (!db) return;
       updateDocumentNonBlocking(doc(db, 'jobs', jobId), { archived: true });
@@ -362,11 +415,11 @@ export function useCocofyStore() {
     signup,
     deleteJob: (jobId: string) => {
       if (!db) return;
-      deleteDoc(doc(db, 'jobs', jobId));
+      deleteDocumentNonBlocking(doc(db, 'jobs', jobId));
     },
     deleteStaff: (userId: string) => {
       if (!db) return;
-      deleteDoc(doc(db, 'users', userId));
+      deleteDocumentNonBlocking(doc(db, 'users', userId));
     },
     resetRankings: () => {
       allUsers.forEach(w => updateDocumentNonBlocking(doc(db, 'users', w.id), { points: 0, acceptedJobs: 0, rejectedJobs: 0 }));
@@ -374,6 +427,19 @@ export function useCocofyStore() {
     updateWorkerStats: (id: string, stats: Partial<UserProfile>) => {
       if (!db) return;
       updateDocumentNonBlocking(doc(db, 'users', id), stats);
+    },
+    addPreset: (data: any) => {
+      if (!db) return;
+      addDocumentNonBlocking(collection(db, 'presets'), {
+        ...data,
+        createdAt: new Date().toISOString()
+      });
+      toast({ title: "Preset Added", description: "Pricing configuration saved." });
+    },
+    deletePreset: (id: string) => {
+      if (!db) return;
+      deleteDocumentNonBlocking(doc(db, 'presets', id));
+      toast({ title: "Preset Removed" });
     },
     authUser
   };

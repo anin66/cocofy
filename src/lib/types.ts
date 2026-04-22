@@ -30,10 +30,33 @@ export type JobStatus =
   | 'harvest_started' 
   | 'completed';
 
+export type PaymentStatus = 'unpaid' | 'partially_paid' | 'fully_paid';
+export type PaymentMethod = 'gpay' | 'cash';
+
 export interface HarvestReport {
   trees: number;
   notes?: string;
   timestamp: string;
+}
+
+export interface PricingPreset {
+  id: string;
+  name: string;
+  totalPricePerTree: number;
+  workerPayPerTree: number;
+  createdAt: string;
+}
+
+export interface AdditionalExpense {
+  description: string;
+  amount: number;
+}
+
+export interface WorkerPaymentInfo {
+  status: PaymentStatus;
+  method?: PaymentMethod;
+  proof?: string;
+  paidAt?: string;
 }
 
 export interface Job {
@@ -51,6 +74,7 @@ export interface Job {
   status: JobStatus; // Overall job status
   createdAt: string;
   notes?: string;
+  presetId?: string; // Reference to selected PricingPreset
   // Delivery fields
   deliveryBoyId?: string;
   deliveryTime?: string; // AM/PM format
@@ -62,7 +86,17 @@ export interface Job {
   harvestCheckRequested?: boolean;
   harvestDone?: boolean;
   workerHarvestReports?: Record<string, HarvestReport>;
+  workerPaymentStatuses?: Record<string, WorkerPaymentInfo>;
   archived?: boolean;
+  // Payment Workflow
+  paymentStatus?: PaymentStatus;
+  amountPaid?: number;
+  paymentMethod?: PaymentMethod;
+  paymentScreenshot?: string; // Legacy field
+  paymentScreenshots?: string[]; // Array of Data URIs for multiple partial payments
+  cashReceivedBy?: string;
+  settledAt?: string;
+  additionalExpenses?: AdditionalExpense[];
 }
 
 export interface WorkerSuggestion {

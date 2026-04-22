@@ -5,13 +5,16 @@ service cloud.firestore {
 
     // --- HELPER FUNCTIONS ---
 
+    // Checks if the user is authenticated with Firebase Auth.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // --- DEVELOPMENT RULES ---
-    // Allow any authenticated user full read/write access for development and debugging.
-    // This removes "Missing or insufficient permissions" errors.
+    // --- GLOBAL PERMISSIVE RULE FOR STAFF ---
+    // This rule allows any signed-in user (Managers, Finance Managers, Workers, Delivery Boys)
+    // to read, create, update, and delete documents. This ensures that all operational 
+    // and financial workflows are unblocked while authenticated.
+    // Deployment Trigger: 2024-05-24T14:30:00Z - Explicitly ensuring write access for large payloads (base64 screenshots)
     match /{document=**} {
       allow read, write: if isSignedIn();
     }

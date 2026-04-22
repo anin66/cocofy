@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -13,7 +12,12 @@ import {
   IndianRupee,
   Users,
   Contact,
-  History
+  History,
+  ShieldCheck,
+  Settings2,
+  Wallet,
+  Coins,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -57,6 +61,7 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
   const getNavigation = () => {
     const base = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { id: 'salary', icon: IndianRupee, label: 'Salary' },
       { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
     ];
 
@@ -66,17 +71,22 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
           { id: 'dashboard', icon: LayoutDashboard, label: 'Overview' },
           { id: 'staff', icon: Contact, label: 'Workers List' },
           { id: 'leaderboard', icon: Trophy, label: 'Workers Ranking' },
+          { id: 'managers', icon: ShieldCheck, label: 'Admin List' },
+          { id: 'presets', icon: Settings2, label: 'Pricing Presets' },
           { id: 'history', icon: History, label: 'Job History' },
         ];
       case 'finance_manager':
         return [
-          { id: 'dashboard', icon: IndianRupee, label: 'Accounts' },
-          { id: 'leaderboard', icon: Trophy, label: 'Incentives' },
-          { id: 'history', icon: History, label: 'Harvest Records' },
+          { id: 'dashboard', icon: LayoutDashboard, label: 'Accounts Overview' },
+          { id: 'analytics', icon: BarChart3, label: 'Analytics' },
+          { id: 'due_amount', icon: Wallet, label: 'Due Amount' },
+          { id: 'worker_salary', icon: Coins, label: 'Worker Salary' },
+          { id: 'payment_history', icon: History, label: 'Payment History' },
         ];
       case 'delivery_boy':
         return [
           { id: 'dashboard', icon: Truck, label: 'Deliveries' },
+          { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
         ];
       default:
         return base;
@@ -91,12 +101,20 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
   };
 
   const getHeaderTitle = () => {
-    if (activeView === 'leaderboard') return 'Workers Leaderboard';
+    if (activeView === 'leaderboard') return user.role === 'finance_manager' ? 'Worker Leaderboard' : 'Workers Leaderboard';
     if (activeView === 'staff') return 'Workers Directory';
-    if (activeView === 'history') return user.role === 'finance_manager' ? 'Harvest Records' : 'Job History';
+    if (activeView === 'managers') return 'Administrative Team';
+    if (activeView === 'presets') return 'Pricing Configuration';
+    if (activeView === 'due_amount') return 'Pending Receivables';
+    if (activeView === 'worker_salary') return 'Worker Payroll';
+    if (activeView === 'payment_history') return 'Payment History';
+    if (activeView === 'history') return 'Job History';
+    if (activeView === 'salary') return 'Accounts';
+    if (activeView === 'analytics') return 'Financial Analytics';
+    
     switch (user.role) {
       case 'manager': return 'Managers Dashboard';
-      case 'finance_manager': return 'Financial Control';
+      case 'finance_manager': return 'Accounts';
       case 'delivery_boy': return 'Delivery Portal';
       default: return 'Worker Portal';
     }
