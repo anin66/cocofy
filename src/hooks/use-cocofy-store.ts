@@ -1,8 +1,17 @@
-
 'use client';
 
 import { useState } from 'react';
-import { Job, UserProfile, JobStatus, Role, HarvestReport, PricingPreset, PaymentStatus, PaymentMethod, WorkerPaymentInfo } from '@/lib/types';
+import { 
+  Job, 
+  UserProfile, 
+  JobStatus, 
+  Role, 
+  HarvestReport, 
+  PricingPreset, 
+  PaymentStatus, 
+  PaymentMethod, 
+  Notification 
+} from '@/lib/types';
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { 
   collection, 
@@ -11,6 +20,9 @@ import {
   getDoc,
   increment,
   arrayUnion,
+  query,
+  where,
+  getDocs
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -20,12 +32,6 @@ import {
 } from 'firebase/auth';
 import { updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from '@/hooks/use-toast';
-
-// Administrative security keys
-const ADMIN_SECURITY_KEYS = {
-  manager: 'COCO-ADMIN-2024',
-  finance_manager: 'COCO-FINANCE-2024'
-};
 
 const ADMIN_EMAIL = 'shaheenmkd2025@gmail.com';
 
@@ -37,199 +43,140 @@ export function useCocofyStore() {
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Fetch the specific profile for the current logged in user
+  // Profile
   const currentUserRef = useMemoFirebase(() => {
     if (!db || !authUser) return null;
     return doc(db, 'users', authUser.uid);
   }, [db, authUser]);
   const { data: currentUser, isLoading: isProfileLoading } = useDoc<UserProfile>(currentUserRef);
 
-  // Jobs Query
+  // Notifications
+  const notificationsQuery = useMemoFirebase(() => {
+    if (!db || !authUser) return null;
+    return query(collection(db, 'notifications'), where('userId', '==', authUser.uid));
+  }, [db, authUser]);
+  const { data: notificationsData } = useCollection<Notification>(notificationsQuery);
+
+  const notifications = (notificationsData || []).sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  // Data Collections
   const jobsCollection = useMemoFirebase(() => {
     if (!db || !authUser) return null;
     return collection(db, 'jobs');
   }, [db, authUser]);
   const { data: jobsData, isLoading: isJobsLoading } = useCollection<Job>(jobsCollection);
 
-  // Users Query
   const usersCollection = useMemoFirebase(() => {
     if (!db || !authUser) return null;
     return collection(db, 'users');
   }, [db, authUser]);
   const { data: usersData, isLoading: isUsersLoading } = useCollection<UserProfile>(usersCollection);
 
-  // Presets Query
   const presetsCollection = useMemoFirebase(() => {
     if (!db || !authUser) return null;
     return collection(db, 'presets');
   }, [db, authUser]);
   const { data: presetsData, isLoading: isPresetsLoading } = useCollection<PricingPreset>(presetsCollection);
   
-  // Local sorting for jobs
-  const jobs = (jobsData || []).sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;
-  });
+  const jobs = (jobsData || []).sort((a, b) => 
+    new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  );
 
   const allUsers = usersData || [];
-  
-  const workers = allUsers
-    .filter(u => u.role === 'worker')
-    .sort((a, b) => (b.points || 0) - (a.points || 0));
-
-  const deliveryBoys = allUsers
-    .filter(u => u.role === 'delivery_boy')
-    .sort((a, b) => (b.points || 0) - (a.points || 0));
-
-  const managers = allUsers
-    .filter(u => u.role === 'manager' || u.role === 'finance_manager')
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-  const presets = (presetsData || []).sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;
-  });
-
+  const workers = allUsers.filter(u => u.role === 'worker').sort((a, b) => (b.points || 0) - (a.points || 0));
+  const deliveryBoys = allUsers.filter(u => u.role === 'delivery_boy').sort((a, b) => (b.points || 0) - (a.points || 0));
+  const managers = allUsers.filter(u => u.role === 'manager' || u.role === 'finance_manager').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const presets = (presetsData || []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activePreset = presets[0] || { id: 'default', totalPricePerTree: 50, workerPayPerTree: 20 };
+
+  // Helper to send notifications
+  const sendNotification = (userId: string, title: string, message: string, type: Notification['type'] = 'info') => {
+    if (!db) return;
+    const nRef = doc(collection(db, 'notifications'));
+    const n: Notification = {
+      id: nRef.id,
+      userId,
+      title,
+      message,
+      type,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+    setDoc(nRef, n);
+    
+    // Toast if the recipient is the current user
+    if (authUser?.uid === userId) {
+      toast({
+        title,
+        description: message,
+        variant: type === 'warning' ? 'destructive' : 'default'
+      });
+    }
+  };
 
   const login = async (targetRole: Role, email?: string, password?: string) => {
     if (!email || !password || isAuthenticating) return;
-    
     setIsAuthenticating(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const userDocRef = doc(db, 'users', userCredential.user.uid);
       const userSnap = await getDoc(userDocRef);
-      
-      const normalizedEmail = email.toLowerCase();
-
       if (!userSnap.exists()) {
-        toast({
-          variant: "destructive",
-          title: "Access Revoked",
-          description: "Your staff profile has been removed by a manager.",
-        });
+        toast({ variant: "destructive", title: "Access Revoked" });
         await signOut(auth);
-        return;
       } else {
         const profile = userSnap.data() as UserProfile;
-        
-        if (normalizedEmail === ADMIN_EMAIL && profile.role !== 'manager') {
-          await setDoc(userDocRef, { ...profile, role: 'manager' }, { merge: true });
-          profile.role = 'manager';
-        }
-
-        if (normalizedEmail === ADMIN_EMAIL && targetRole !== 'manager') {
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "Administrative accounts must use the Manager portal.",
-          });
+        if (profile.role !== targetRole && email.toLowerCase() !== ADMIN_EMAIL) {
+          toast({ variant: "destructive", title: "Access Denied" });
           await signOut(auth);
-          return;
+        } else {
+          toast({ title: `Welcome, ${profile.name}!` });
         }
-
-        if (normalizedEmail !== ADMIN_EMAIL && profile.role !== targetRole) {
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: `This account is registered as a ${profile.role.replace('_', ' ')}.`,
-          });
-          await signOut(auth);
-          return;
-        }
-        
-        toast({
-          title: "Logged In",
-          description: `Welcome back, ${profile.name}!`,
-        });
       }
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Error",
-        description: error.message || "Failed to sign in.",
-      });
+      toast({ variant: "destructive", title: "Login Error", description: error.message });
     } finally {
       setIsAuthenticating(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Signed out" });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Logout Error", description: error.message });
     }
   };
 
   const signup = async (userData: any) => {
     if (!userData.email || !userData.password || isAuthenticating) return;
-    
-    const normalizedEmail = userData.email.toLowerCase();
-    const isSpecialAdmin = normalizedEmail === ADMIN_EMAIL;
-
-    if (!isSpecialAdmin && (userData.role === 'manager' || userData.role === 'finance_manager')) {
-      const expectedKey = ADMIN_SECURITY_KEYS[userData.role as keyof typeof ADMIN_SECURITY_KEYS];
-      if (userData.secretKey !== expectedKey) {
-        toast({
-          variant: "destructive",
-          title: "Authorization Failed",
-          description: "Incorrect security key.",
-        });
-        return;
-      }
-    }
-
     setIsAuthenticating(true);
-
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
-      
       const newUser: UserProfile = {
         id: userCredential.user.uid,
         name: userData.name || 'New User',
-        email: normalizedEmail,
-        role: isSpecialAdmin ? 'manager' : (userData.role || 'worker'),
+        email: userData.email.toLowerCase(),
+        role: userData.role || 'worker',
         phone: userData.phone || '',
         dob: userData.dob || '',
         skills: [],
         availability: 'Available',
-        currentStatus: 'Free for Work',
         points: 0,
         acceptedJobs: 0,
         rejectedJobs: 0,
         createdAt: new Date().toISOString()
       };
-
       await setDoc(doc(db, 'users', userCredential.user.uid), newUser);
-      
-      toast({
-        title: "Account Created",
-        description: `Welcome, ${userData.name}!`,
-      });
+      toast({ title: "Account Created" });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Signup Error",
-        description: error.message || "Could not create account.",
-      });
+      toast({ variant: "destructive", title: "Signup Error", description: error.message });
     } finally {
       setIsAuthenticating(false);
     }
-  };
-
-  const logout = () => {
-    signOut(auth);
-  };
-
-  const addJob = (jobData: any) => {
-    if (!db || !currentUser) return;
-    const newJobData = {
-      ...jobData,
-      managerId: currentUser.id,
-      status: 'unconfirmed',
-      assignedWorkerIds: [],
-      workerStatuses: {},
-      createdAt: new Date().toISOString(),
-      presetId: jobData.presetId || activePreset.id,
-      paymentStatus: 'unpaid'
-    };
-    addDocumentNonBlocking(collection(db, 'jobs'), newJobData);
   };
 
   const updateJobStatus = (jobId: string, status: JobStatus) => {
@@ -237,24 +184,32 @@ export function useCocofyStore() {
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
 
-    const updates: any = { status };
+    let updates: any = { status };
 
-    // Worker acceptance/rejection
+    // Workflow Logic & Push Notifications
     if (currentUser.role === 'worker' && (status === 'accepted' || status === 'rejected')) {
       const newWorkerStatuses = { ...job.workerStatuses, [currentUser.id]: status };
       updates.workerStatuses = newWorkerStatuses;
       
-      if (['pending', 'confirmed', 'unconfirmed'].includes(job.status)) {
-        updates.status = 'pending';
-        const acceptedCount = Object.values(newWorkerStatuses).filter(s => s === 'accepted').length;
-        const totalAssigned = job.assignedWorkerIds?.length || 0;
-        
-        if (totalAssigned > 0 && acceptedCount === totalAssigned) {
-          updates.status = 'confirmed';
-        }
+      // Calculate overall job status based on team responses
+      const totalRequired = job.assignedWorkerIds?.length || 1;
+      const acceptedCount = Object.values(newWorkerStatuses).filter(s => s === 'accepted').length;
+      
+      // If all workers have accepted, move the job status to confirmed to trigger logistics
+      if (acceptedCount >= totalRequired) {
+        updates.status = 'confirmed';
       } else {
-        delete updates.status;
+        // Otherwise keep it pending so manager can see awaiting responses or manage replacements
+        updates.status = 'pending';
       }
+
+      // Notify Manager
+      sendNotification(
+        job.managerId, 
+        `Worker ${status.charAt(0).toUpperCase() + status.slice(1)}`, 
+        `${currentUser.name} has ${status} the job for ${job.customerName}.`,
+        status === 'rejected' ? 'warning' : 'success'
+      );
 
       if (status === 'accepted') {
         updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { points: increment(10), acceptedJobs: increment(1) });
@@ -264,33 +219,110 @@ export function useCocofyStore() {
     }
 
     if (currentUser.role === 'delivery_boy') {
-      if (status === 'delivery_pickup_started') {
-        updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { currentStatus: 'Currently Working' });
+      if (status === 'delivery_assigned' && !job.deliveryConfirmedByBoy) {
+        updates.deliveryConfirmedByBoy = true;
+        sendNotification(job.managerId, "Task Confirmed", `${currentUser.name} has confirmed the delivery task for ${job.customerName}.`, "success");
+      } else if (status === 'delivery_pickup_started') {
+        sendNotification(job.managerId, "Pickup Started", `Delivery boy ${currentUser.name} has started the pickup.`, "info");
       } else if (status === 'delivery_destination_reached') {
         updates.deliveryDone = true;
-      } else if (status === 'delivery_assigned' && !job.deliveryConfirmedByBoy) {
-        updates.deliveryConfirmedByBoy = true;
+        sendNotification(job.managerId, "Arrival Notice", `Delivery boy ${currentUser.name} has reached the destination for ${job.customerName}.`, "success");
       }
     }
 
     if (status === 'harvest_started') {
-      const teamIds = new Set([
-        ...(job.assignedWorkerIds || []),
-        ...Object.keys(job.workerStatuses || {}),
-        job.deliveryBoyId
-      ].filter(Boolean));
+      sendNotification(job.managerId, "Harvest Started", `The team has started harvesting at ${job.customerName}.`, "info");
+    }
+
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
+  };
+
+  const reassignWorker = (jobId: string, workerIds: string[]) => {
+    if (!db) return;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    workerIds.forEach(id => {
+      if (!job.assignedWorkerIds?.includes(id)) {
+        sendNotification(id, "New Job Request", `You have been assigned to harvest for ${job.customerName}. Check the details!`, "info");
+      }
+    });
+
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+      assignedWorkerIds: workerIds,
+      status: 'pending' 
+    });
+  };
+
+  const assignDeliveryBoy = (jobId: string, data: { deliveryBoyId: string, deliveryTime: string, gpsUrl: string }) => {
+    if (!db) return;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    sendNotification(data.deliveryBoyId, "New Delivery Task", `Pick up harvest from ${job.customerName} at ${data.deliveryTime}.`, "info");
+
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
+      ...data,
+      status: 'delivery_assigned',
+      deliveryConfirmedByBoy: false
+    });
+  };
+
+  const submitHarvestReport = (jobId: string, trees: number, notes?: string) => {
+    if (!db || !currentUser) return;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    const newReports = { ...(job.workerHarvestReports || {}), [currentUser.id]: { trees, notes, timestamp: new Date().toISOString() } };
+    const updates: any = { 
+      workerHarvestReports: newReports,
+      workerPaymentStatuses: { ...(job.workerPaymentStatuses || {}), [currentUser.id]: { status: 'unpaid' } }
+    };
+    
+    const reportsCount = Object.keys(newReports).length;
+    const totalRequired = job.assignedWorkerIds?.length || 1;
+
+    if (reportsCount >= totalRequired) {
+      updates.status = 'completed';
+      updates.harvestDone = true;
       
-      teamIds.forEach(workerId => {
-        updateDocumentNonBlocking(doc(db, 'users', workerId as string), { currentStatus: 'Currently Working' });
+      // Notify Manager
+      sendNotification(job.managerId, "Job Completed", `Harvesting for ${job.customerName} is finished. Total trees: ${trees}.`, "success");
+      
+      // Notify Finance Managers for settlement
+      allUsers.filter(u => u.role === 'finance_manager').forEach(f => {
+        sendNotification(f.id, "New Settlement Pending", `Payment settlement required for ${job.customerName}. Harvest completed.`, "warning");
       });
     }
 
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
   };
 
+  const payWorkerSalary = (jobId: string, workerId: string, method: PaymentMethod, proofUrl: string) => {
+    if (!db) return;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    const newPaymentStatuses = {
+      ...(job.workerPaymentStatuses || {}),
+      [workerId]: {
+        status: 'fully_paid',
+        method,
+        proof: proofUrl,
+        paidAt: new Date().toISOString()
+      }
+    };
+
+    updateDocumentNonBlocking(doc(db, 'jobs', jobId), { workerPaymentStatuses: newPaymentStatuses });
+    
+    // Notify Worker
+    sendNotification(workerId, "Salary Settled", `Your payment for ${job.customerName} has been processed via ${method.toUpperCase()}.`, "success");
+  };
+
   return {
     jobs,
     currentUser,
+    notifications,
     workers,
     deliveryBoys,
     managers,
@@ -300,147 +332,43 @@ export function useCocofyStore() {
     isUserLoading: isAuthLoading || isProfileLoading || isUsersLoading || isJobsLoading || isPresetsLoading,
     login,
     logout,
-    addJob,
-    updateJobStatus,
-    setHarvestTime: (jobId: string, time: string, presetId: string) => {
-      if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
-        harvestTime: time,
-        presetId: presetId
+    signup,
+    addJob: (data: any) => {
+      if (!db || !currentUser) return;
+      addDocumentNonBlocking(collection(db, 'jobs'), { 
+        ...data, 
+        managerId: currentUser.id, 
+        status: 'unconfirmed', 
+        assignedWorkerIds: [], 
+        workerStatuses: {}, 
+        createdAt: new Date().toISOString(), 
+        paymentStatus: 'unpaid' 
       });
     },
-    assignDeliveryBoy: (jobId: string, data: { deliveryBoyId: string, deliveryTime: string, gpsUrl: string }) => {
-      if (!db) return;
-      const updates = { 
-        ...data,
-        status: 'delivery_assigned' as JobStatus,
-        deliveryConfirmedByBoy: false,
-        deliveryDone: false
-      };
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
+    updateJobStatus,
+    reassignWorker,
+    assignDeliveryBoy,
+    submitHarvestReport,
+    payWorkerSalary,
+    markAsRead: () => {
+      notifications.filter(n => !n.read).forEach(n => updateDocumentNonBlocking(doc(db, 'notifications', n.id), { read: true }));
     },
-    reassignWorker: (jobId: string, workerIds: string[]) => {
-      if (!db) return;
-      const updates = { 
-        assignedWorkerIds: workerIds,
-        status: 'pending' as JobStatus
-      };
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
-    },
-    submitHarvestReport: (jobId: string, trees: number, notes?: string) => {
-      if (!db || !currentUser) return;
-      const job = jobs.find(j => j.id === jobId);
-      if (!job) return;
-
-      const report: HarvestReport = {
-        trees,
-        notes,
-        timestamp: new Date().toISOString()
-      };
-
-      const newReports = {
-        ...(job.workerHarvestReports || {}),
-        [currentUser.id]: report
-      };
-
-      const newPaymentStatuses = {
-        ...(job.workerPaymentStatuses || {}),
-        [currentUser.id]: { status: 'unpaid' as PaymentStatus }
-      };
-
-      const updates: any = { 
-        workerHarvestReports: newReports,
-        workerPaymentStatuses: newPaymentStatuses
-      };
-      
-      const reportsCount = Object.keys(newReports).length;
-      const totalRequired = job.assignedWorkerIds?.length || 1;
-
-      if (reportsCount >= totalRequired) {
-        updates.harvestDone = true;
-        updates.status = 'completed';
-        
-        const teamIds = new Set([
-          ...(job.assignedWorkerIds || []),
-          ...Object.keys(job.workerStatuses || {}),
-          job.deliveryBoyId
-        ].filter(Boolean));
-
-        teamIds.forEach(workerId => {
-          updateDocumentNonBlocking(doc(db, 'users', workerId as string), { currentStatus: 'Free for Work' });
-        });
-      }
-
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
-      toast({ title: "Report Submitted", description: "Harvest data recorded." });
-    },
-    updatePaymentStatus: (jobId: string, paymentData: Partial<Job>) => {
-      if (!db) return;
-      
-      const { paymentScreenshots, ...rest } = paymentData;
-      const updates: any = {
-        ...rest,
-        settledAt: new Date().toISOString()
-      };
-
-      if (paymentScreenshots && paymentScreenshots.length > 0) {
-        updates.paymentScreenshots = arrayUnion(...paymentScreenshots);
-      }
-
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
-      toast({ title: "Payment Recorded", description: "The accounts have been updated." });
-    },
-    payWorkerSalary: (jobId: string, workerId: string, method: PaymentMethod, proofUrl: string) => {
-      if (!db) return;
-      const job = jobs.find(j => j.id === jobId);
-      if (!job) return;
-
-      const newPaymentStatuses = {
-        ...(job.workerPaymentStatuses || {}),
-        [workerId]: {
-          status: 'fully_paid' as PaymentStatus,
-          method: method,
-          proof: proofUrl,
-          paidAt: new Date().toISOString()
-        }
-      };
-
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { workerPaymentStatuses: newPaymentStatuses });
-      toast({ title: "Salary Settled", description: "The worker's salary has been marked as paid." });
-    },
-    archiveJob: (jobId: string) => {
-      if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'jobs', jobId), { archived: true });
-    },
-    signup,
-    deleteJob: (jobId: string) => {
-      if (!db) return;
-      deleteDocumentNonBlocking(doc(db, 'jobs', jobId));
-    },
-    deleteStaff: (userId: string) => {
-      if (!db) return;
-      deleteDocumentNonBlocking(doc(db, 'users', userId));
-    },
-    resetRankings: () => {
-      allUsers.forEach(w => updateDocumentNonBlocking(doc(db, 'users', w.id), { points: 0, acceptedJobs: 0, rejectedJobs: 0 }));
-    },
-    updateWorkerStats: (id: string, stats: Partial<UserProfile>) => {
-      if (!db) return;
-      updateDocumentNonBlocking(doc(db, 'users', id), stats);
-    },
-    addPreset: (data: any) => {
+    deleteNotification: (id: string) => deleteDocumentNonBlocking(doc(db, 'notifications', id)),
+    clearAllNotifications: () => notifications.forEach(n => deleteDocumentNonBlocking(doc(db, 'notifications', n.id))),
+    setHarvestTime: (jobId: string, time: string, presetId: string) => updateDocumentNonBlocking(doc(db, 'jobs', jobId), { harvestTime: time, presetId }),
+    archiveJob: (jobId: string) => updateDocumentNonBlocking(doc(db, 'jobs', jobId), { archived: true }),
+    deleteJob: (jobId: string) => deleteDocumentNonBlocking(doc(db, 'jobs', jobId)),
+    deleteStaff: (userId: string) => deleteDocumentNonBlocking(doc(db, 'users', userId)),
+    updatePaymentStatus: (jobId: string, data: any) => updateDocumentNonBlocking(doc(db, 'jobs', jobId), { ...data, settledAt: new Date().toISOString() }),
+    resetRankings: () => allUsers.forEach(w => updateDocumentNonBlocking(doc(db, 'users', w.id), { points: 0, acceptedJobs: 0, rejectedJobs: 0 })),
+    updateWorkerStats: (id: string, stats: any) => updateDocumentNonBlocking(doc(db, 'users', id), stats),
+    addPreset: (data: { name: string, totalPricePerTree: number, workerPayPerTree: number }) => {
       if (!db) return;
       addDocumentNonBlocking(collection(db, 'presets'), {
         ...data,
         createdAt: new Date().toISOString()
       });
-      toast({ title: "Preset Added", description: "Pricing configuration saved." });
     },
-    deletePreset: (id: string) => {
-      if (!db) return;
-      deleteDocumentNonBlocking(doc(db, 'presets', id));
-      toast({ title: "Preset Removed" });
-    },
-    authUser
+    deletePreset: (id: string) => deleteDocumentNonBlocking(doc(db, 'presets', id))
   };
 }

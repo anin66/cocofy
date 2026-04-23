@@ -15,7 +15,18 @@ export interface UserProfile {
   points: number;
   acceptedJobs: number;
   rejectedJobs: number;
+  fcmTokens?: string[];
   createdAt?: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning';
+  read: boolean;
+  createdAt: string;
 }
 
 export type JobStatus = 

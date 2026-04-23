@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -24,7 +23,8 @@ import {
   Play,
   Dot,
   ExternalLink,
-  IndianRupee
+  IndianRupee,
+  AlertTriangle
 } from 'lucide-react';
 import { Job, JobStatus, Role, UserProfile } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -37,17 +37,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { differenceInDays, startOfDay } from 'date-fns';
 
 interface JobCardProps {
   job: Job;
@@ -63,6 +53,7 @@ interface JobCardProps {
   onWorkerComplete?: (job: Job) => void;
   onArchive?: (id: string) => void;
   onSettlePayment?: (job: Job) => void;
+  variant?: 'default' | 'minimal';
 }
 
 const statusConfig = {
@@ -91,7 +82,8 @@ export function JobCard({
   onDelete,
   onWorkerComplete,
   onArchive,
-  onSettlePayment
+  onSettlePayment,
+  variant = 'default'
 }: JobCardProps) {
   const [optimisticStatus, setOptimisticStatus] = useState<JobStatus | null>(null);
 
@@ -102,8 +94,6 @@ export function JobCard({
   }, [job.status, job.workerStatuses, optimisticStatus, role, currentUserId]);
 
   const acceptedWorkers = assignedWorkers.filter(w => job.workerStatuses?.[w.id] === 'accepted');
-  const rejectingWorkers = assignedWorkers.filter(w => job.workerStatuses?.[w.id] === 'rejected');
-  
   const totalAssignedCount = job.assignedWorkerIds?.length || 0;
   const isTeamComplete = totalAssignedCount > 0 && acceptedWorkers.length >= totalAssignedCount;
   
@@ -114,7 +104,7 @@ export function JobCard({
     badgeStatusKey = 'confirmed';
   }
   
-  if (role === 'worker' && currentUserId && (displayStatus === 'pending' || displayStatus === 'confirmed')) {
+  if (role === 'worker' && currentUserId && (displayStatus === 'pending' || displayStatus === 'confirmed' || displayStatus === 'accepted')) {
     badgeStatusKey = job.workerStatuses?.[currentUserId] || 'pending';
   }
 
@@ -128,16 +118,100 @@ export function JobCard({
 
   const isAdmin = role === 'manager' || role === 'finance_manager';
   const isDelivery = role === 'delivery_boy';
-  const isWorker = role === 'worker';
-  const isFinance = role === 'finance_manager';
-  
-  const canSeeContact = isAdmin || isDelivery;
-  const canSeeLocation = isAdmin || isDelivery;
 
+  // Minimal Variant for Finance "Pending Receivables"
+  if (variant === 'minimal') {
+    const scheduledDate = startOfDay(new Date(job.scheduledDate));
+    const today = startOfDay(new Date());
+    const daysDue = Math.max(0, differenceInDays(today, scheduledDate));
+
+    const getDueInfo = () => {
+      if (daysDue === 0) return { 
+        label: 'Due Today', 
+        badge: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+        border: 'border-yellow-500/20' 
+      };
+      if (daysDue === 1) return { 
+        label: 'Due 1 Day', 
+        badge: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        border: 'border-orange-500/40' 
+      };
+      if (daysDue === 2) return { 
+        label: 'Due 2 Days', 
+        badge: 'bg-orange-600/20 text-orange-500 border-orange-600/30',
+        border: 'border-orange-600/60' 
+      };
+      return { 
+        label: `Due ${daysDue} Days`, 
+        badge: 'bg-destructive/20 text-destructive border-destructive/30',
+        border: 'border-destructive/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' 
+      };
+    };
+
+    const dueInfo = getDueInfo();
+
+    return (
+      <Card className={cn(
+        "glass-card overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 animate-fade-in flex flex-col border-2",
+        dueInfo.border
+      )}>
+        <CardHeader className="p-4 pb-2">
+          <div className="flex justify-between items-start gap-2">
+            <h2 className="text-xl font-headline font-bold text-white leading-tight truncate">{job.customerName}</h2>
+            <Badge className={cn("px-2 py-0.5 border text-[9px] font-bold shrink-0 flex items-center gap-1", dueInfo.badge)} variant="outline">
+              <AlertTriangle className="w-3 h-3" />
+              <span className="uppercase tracking-widest">{dueInfo.label}</span>
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground mt-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span className="text-xs">{new Date(job.scheduledDate).toLocaleDateString()}</span>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-4 pt-2 space-y-4">
+          <div className="flex items-center gap-2 text-white/90">
+            <Phone className="w-4 h-4 text-primary shrink-0" />
+            <span className="text-sm font-medium">{job.customerPhone}</span>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-3">
+             <div className="space-y-1">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <Users className="w-3 h-3" /> Assigned Workers
+                </div>
+                <p className="text-sm text-white/80 pl-5">
+                  {assignedWorkers.length > 0 ? assignedWorkers.map(w => w.name).join(', ') : 'None'}
+                </p>
+             </div>
+
+             <div className="space-y-1">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
+                  <Truck className="w-3 h-3" /> Delivery Personnel
+                </div>
+                <p className="text-sm text-white/80 pl-5">
+                  {deliveryBoy?.name || 'Not assigned'}
+                </p>
+             </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="p-4 pt-0">
+          {onSettlePayment && (
+            <UIButton className="w-full orange-gradient h-11 text-sm font-bold gap-2" onClick={() => onSettlePayment(job)}>
+              <IndianRupee className="w-4 h-4" /> Receive Payment
+            </UIButton>
+          )}
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // Default Variant
   return (
     <Card className={cn(
       "glass-card overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 animate-fade-in flex flex-col min-h-[160px]",
-      job.archived && !isFinance && "opacity-50 grayscale"
+      job.archived && job.paymentStatus === 'fully_paid' && "opacity-50 grayscale"
     )}>
       <CardHeader className="p-3 pb-1 space-y-1">
         <div className="flex justify-between items-start w-full">
@@ -176,18 +250,18 @@ export function JobCard({
       
       <CardContent className="p-4 pt-1 space-y-3 flex-1">
         <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          {canSeeContact && (
+          {isAdmin || isDelivery ? (
             <div className="flex items-center gap-2 text-white/90">
               <Phone className="w-4 h-4 text-primary shrink-0" />
               <span className="text-base font-medium truncate">{job.customerPhone}</span>
             </div>
-          )}
-          {canSeeLocation && (
+          ) : null}
+          {isAdmin || isDelivery ? (
             <div className="flex items-center gap-2 text-white/90">
               <MapPin className="w-4 h-4 text-primary shrink-0" />
               <span className="text-base truncate">{job.location}</span>
             </div>
-          )}
+          ) : null}
           <div className="flex items-center gap-2 text-white/90">
             <Calendar className="w-4 h-4 text-primary shrink-0" />
             <span className="text-base">{new Date(job.scheduledDate).toLocaleDateString(undefined, { dateStyle: 'short' })}</span>
@@ -280,7 +354,6 @@ export function JobCard({
       </CardContent>
 
       <CardFooter className="p-4 pt-0 gap-3">
-        {/* Manager Actions */}
         {role === 'manager' && displayStatus === 'unconfirmed' && (
           <UIButton className="w-full orange-gradient h-12 text-base font-bold" onClick={() => handleAction('pending')}>Confirm Order</UIButton>
         )}
@@ -294,10 +367,6 @@ export function JobCard({
             <UIButton className="w-full bg-green-600 hover:bg-green-700 text-white font-bold gap-2 h-12 text-base" onClick={() => onReassign?.(job)}>
               <UserPlus className="w-5 h-5" /> Assign Team
             </UIButton>
-          ) : rejectingWorkers.length > 0 ? (
-            <UIButton className="w-full bg-accent hover:bg-accent/90 text-white font-bold gap-2 h-12 text-base" onClick={() => onReassign?.(job)}>
-              <UserPlus className="w-5 h-5" /> Manage Replacement
-            </UIButton>
           ) : !isTeamComplete ? (
             <div className="w-full py-3 px-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-xs font-bold text-center animate-pulse flex items-center justify-center gap-2">
               <Clock className="w-4 h-4" /> Awaiting responses...
@@ -305,7 +374,7 @@ export function JobCard({
           ) : null
         )}
 
-        {role === 'manager' && (displayStatus === 'confirmed' || displayStatus === 'pending' && isTeamComplete) && !job.archived && !job.deliveryBoyId && (
+        {role === 'manager' && (['confirmed', 'accepted'].includes(displayStatus) || (displayStatus === 'pending' && isTeamComplete)) && !job.archived && !job.deliveryBoyId && (
            <UIButton className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold gap-2 h-12 text-base" onClick={() => onAssignDelivery?.(job)}>
             <Truck className="w-5 h-5" /> Assign Delivery Boy
            </UIButton>
@@ -317,14 +386,12 @@ export function JobCard({
            </UIButton>
         )}
 
-        {/* Finance Manager Actions */}
-        {role === 'finance_manager' && displayStatus === 'completed' && !job.settledAt && (
+        {role === 'finance_manager' && (displayStatus === 'completed' || job.settledAt) && job.paymentStatus !== 'fully_paid' && (
            <UIButton className="w-full orange-gradient h-12 text-base font-bold gap-2" onClick={() => onSettlePayment?.(job)}>
-            <IndianRupee className="w-5 h-5" /> Settle Payment
+            <IndianRupee className="w-5 h-5" /> Receive Payment
            </UIButton>
         )}
 
-        {/* Delivery Boy Actions */}
         {role === 'delivery_boy' && displayStatus === 'delivery_assigned' && !job.deliveryConfirmedByBoy && (
            <UIButton className="w-full orange-gradient h-12 text-base font-bold" onClick={() => handleAction('delivery_assigned')}>Accept Task</UIButton>
         )}
@@ -341,7 +408,6 @@ export function JobCard({
            </UIButton>
         )}
 
-        {/* Worker Actions */}
         {role === 'worker' && job.workerStatuses?.[currentUserId || ''] === 'accepted' && (
           <div className="w-full flex flex-col gap-2">
             {displayStatus === 'delivery_destination_reached' && (
@@ -361,23 +427,7 @@ export function JobCard({
         {role === 'worker' && !['completed', 'archived'].includes(displayStatus) && job.workerStatuses?.[currentUserId || ''] !== 'accepted' && job.workerStatuses?.[currentUserId || ''] !== 'rejected' && (
           <div className="flex w-full gap-3">
             <UIButton className="flex-1 orange-gradient h-12 text-base font-bold" onClick={() => handleAction('accepted')}>Accept</UIButton>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <UIButton variant="outline" className="flex-1 border-accent/20 text-accent hover:bg-accent/10 h-12 text-base font-bold">Reject</UIButton>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="glass border-white/10">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription className="text-muted-foreground">
-                    Rejecting a job will affect your rankings and upcoming works.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleAction('rejected')} className="bg-destructive text-destructive-foreground">Yes, Reject</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <UIButton variant="outline" className="flex-1 border-accent/20 text-accent hover:bg-accent/10 h-12 text-base font-bold" onClick={() => handleAction('rejected')}>Reject</UIButton>
           </div>
         )}
       </CardFooter>

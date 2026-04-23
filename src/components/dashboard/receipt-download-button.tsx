@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useRef, useState } from 'react';
@@ -176,19 +177,20 @@ export function ReceiptDownloadButton({ job, preset }: ReceiptDownloadButtonProp
           </div>
         </div>
 
+        {/* Updated Section: Support for multiple payment proof screenshots */}
         {(job.paymentScreenshot || (job.paymentScreenshots && job.paymentScreenshots.length > 0)) && (
           <div style={{ borderTop: '1px dashed #ccc', paddingTop: '30px' }}>
             <h3 style={{ fontSize: '14px', color: '#EB7619', textTransform: 'uppercase', marginBottom: '20px' }}>Payment Proof Attachments</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px' }}>
               {job.paymentScreenshot && (
                 <div style={{ border: '1px solid #eee', borderRadius: '8px', padding: '10px' }}>
-                  <p style={{ margin: '0 0 10px', fontSize: '10px', color: '#999', textTransform: 'uppercase' }}>Main Proof</p>
+                  <p style={{ margin: '0 0 10px', fontSize: '10px', color: '#999', textTransform: 'uppercase' }}>Legacy Proof</p>
                   <img src={job.paymentScreenshot} style={{ width: '100%', borderRadius: '4px', objectFit: 'contain', maxHeight: '250px' }} />
                 </div>
               )}
               {job.paymentScreenshots?.map((src, idx) => (
                 <div key={idx} style={{ border: '1px solid #eee', borderRadius: '8px', padding: '10px' }}>
-                  <p style={{ margin: '0 0 10px', fontSize: '10px', color: '#999', textTransform: 'uppercase' }}>Proof #{idx + 1}</p>
+                  <p style={{ margin: '0 0 10px', fontSize: '10px', color: '#999', textTransform: 'uppercase' }}>Payment Proof #{idx + 1}</p>
                   <img src={src} style={{ width: '100%', borderRadius: '4px', objectFit: 'contain', maxHeight: '250px' }} />
                 </div>
               ))}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -21,7 +22,8 @@ import {
   Trash2,
   Plus,
   Utensils,
-  UserCheck
+  UserCheck,
+  Tag
 } from 'lucide-react';
 import { Job, PaymentStatus, PaymentMethod, PricingPreset, AdditionalExpense } from '@/lib/types';
 import { 
@@ -148,8 +150,10 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
         additionalExpenses: additionalExpenses.filter(e => e.description.trim() !== '')
       };
 
+      // Accumulate screenshots from multiple payment sessions
+      const existingScreenshots = job.paymentScreenshots || [];
       if (newScreenshots.length > 0) {
-        data.paymentScreenshots = newScreenshots;
+        data.paymentScreenshots = [...existingScreenshots, ...newScreenshots];
       }
       
       if (paymentMethod === 'cash') {
@@ -196,6 +200,11 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                   <span className="text-xl font-headline font-bold text-white flex items-center gap-1">
                     <IndianRupee className="w-3.5 h-3.5 text-primary" />
                     {totalExpectedAmount.toLocaleString()}
+                  </span>
+                  {/* Preset Rate Display */}
+                  <span className="text-[10px] text-primary/80 font-bold flex items-center gap-1 mt-1">
+                    <Tag className="w-2.5 h-2.5" />
+                    Rate: ₹{preset?.totalPricePerTree || 0}/tree
                   </span>
                 </div>
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 h-6">

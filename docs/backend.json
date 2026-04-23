@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -39,6 +40,11 @@
           "description": "URL to the user's profile picture.",
           "format": "uri"
         },
+        "fcmTokens": {
+          "type": "array",
+          "description": "List of FCM registration tokens for push notifications.",
+          "items": { "type": "string" }
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the user account was created.",
@@ -59,6 +65,22 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents an in-app notification sent to a specific user.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "message", "read", "createdAt"]
     },
     "WorkerProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -335,7 +357,17 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores core user profile information, including their assigned role (manager or worker). The `userId` parameter is expected to match `request.auth.uid` for private access."
+          "description": "Stores core user profile information."
+        }
+      },
+      {
+        "path": "/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "User specific notifications."
         }
       },
       {
@@ -345,33 +377,7 @@
           "schema": {
             "$ref": "#/backend/entities/WorkerProfile"
           },
-          "description": "Dedicated collection for worker-specific attributes and preferences. The `workerId` parameter is the user's unique ID. Individual workers can manage their own profile, while managers have read access to all worker profiles for assignment purposes.",
-          "params": [
-            {
-              "name": "workerId",
-              "description": "The unique ID of the worker, matching their `userId`."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{managerId}/customers/{customerId}",
-        "definition": {
-          "entityName": "Customer",
-          "schema": {
-            "$ref": "#/backend/entities/Customer"
-          },
-          "description": "Customers created and managed by a specific manager. Access is restricted to the `managerId` associated with the path. This ensures Authorization Independence and supports QAPs for managers to list their own customers.",
-          "params": [
-            {
-              "name": "managerId",
-              "description": "The unique ID of the manager who owns and created this customer record."
-            },
-            {
-              "name": "customerId",
-              "description": "The unique ID of the customer record."
-            }
-          ]
+          "description": "Worker specific details."
         }
       },
       {
@@ -381,32 +387,10 @@
           "schema": {
             "$ref": "#/backend/entities/Job"
           },
-          "description": "Top-level collection for all job requests. Each job document contains a `managerId` field that identifies its creator and owner. Write access is restricted to the owning manager. For worker access to job details, refer to the denormalized data in `jobAssignments` to maintain Authorization Independence.",
-          "params": [
-            {
-              "name": "jobId",
-              "description": "The unique ID of the job."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/jobAssignments/{jobAssignmentId}",
-        "definition": {
-          "entityName": "JobAssignment",
-          "schema": {
-            "$ref": "#/backend/entities/JobAssignment"
-          },
-          "description": "Represents an individual worker's assignment to a job. This document includes denormalized 'managerId' and essential 'Job' details (e.g., 'jobTitle', 'jobLocation', 'jobScheduledDateTime', 'jobDescription', 'jobRequiredWorkersCount', 'jobStatus') to achieve Authorization Independence. Both managers and workers can query and manage their respective assignments without requiring 'get()' calls to parent Job documents, supporting QAPs for listing assignments.",
-          "params": [
-            {
-              "name": "jobAssignmentId",
-              "description": "The unique ID of the job assignment."
-            }
-          ]
+          "description": "Job requests."
         }
       }
     ],
-    "reasoning": "The Firestore structure for Cocofy prioritizes secure, scalable, and debuggable access by strictly adhering to the core design principles.Central to this design is **Authorization Independence**, achieved through strategic denormalization. For instance, `JobAssignment` documents are not merely links; they are enriched with denormalized `managerId`, `workerId`, and essential `Job` details (like `jobTitle`, `jobLocation`, `jobScheduledDateTime`, `jobDescription`, `jobRequiredWorkersCount`, and `jobStatus`). This ensures that neither managers nor workers need to perform costly or rule-breaking `get()` calls to parent documents (`jobs/{jobId}`) to ascertain authorization or retrieve critical display information when listing or viewing assignments.\n\nThis structure directly supports **Queryable Access Patterns (QAPs)**. Managers can efficiently list their created jobs from `/jobs` by querying on `managerId == request.auth.uid`. They can also list their associated customers from `/users/{managerId}/customers` (where `managerId` is `request.auth.uid`). Crucially, both managers and workers can list their respective job assignments from the top-level `/jobAssignments` collection by querying `managerId == request.auth.uid` or `workerId == request.auth.uid`, respectively. The denormalized job details within `JobAssignment` documents make these lists self-sufficient for display purposes, eliminating the need for client-side joins or insecure `get()` operations in rules.\n\n**Structural Segregation** is applied by separating data with distinct security postures. For example, manager-specific customer data resides under `/users/{managerId}/customers`, ensuring only the owning manager can access them. Worker-specific profiles are in `/workerProfiles/{workerId}`, allowing individual workers to manage their data while granting managers broader read access for the 'Smart Reassignment Assistant'. Global entities like `jobs` are at the top level, with access carefully controlled by the `managerId` field and further supported by denormalized `JobAssignment` data for worker access.\n\n**DBAC (Database-Backed Access Control)** is implemented by storing the user's `role` directly in their `users/{userId}` document. Authorization rules will leverage `get(/users/$(request.auth.uid)).data.role` to verify manager or worker roles, providing clear, auditable, and performant access control based solely on `request.auth.uid` and database content. This avoids custom claims entirely. Consistent use of semantic wildcards (e.g., `{userId}`, `{jobId}`) and dedicated status fields (`status`, `assignmentStatus`) further enhances **Data Clarity and Predictability**, simplifying rule writing and debugging. Invariants like ownership and timestamps are explicitly managed within the document schemas."
+    "reasoning": "Standardizing paths for simplified access and notification support."
   }
 }

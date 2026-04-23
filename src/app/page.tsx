@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -14,7 +15,8 @@ import { ReceiptDownloadButton } from '@/components/dashboard/receipt-download-b
 import { Leaderboard } from '@/components/dashboard/leaderboard';
 import { WorkerSalaryModal } from '@/components/dashboard/worker-salary-modal';
 import { FinancialAnalytics } from '@/components/dashboard/financial-analytics';
-import { Job, Role, PaymentMethod } from '@/lib/types';
+import { PricingPresetsView } from '@/components/dashboard/pricing-presets-view';
+import { Job, Role } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -32,15 +34,16 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
-  Settings2,
-  Coins,
   ArrowUpRight,
   Landmark,
   Phone,
   MapPin,
   Calendar,
   TreePalm,
-  ImageDown
+  Coins,
+  ImageDown,
+  CheckCircle2,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -82,7 +85,6 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [activeView, setActiveView] = useState('dashboard');
-  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
   
   const [authData, setAuthData] = useState({ 
     name: '', 
@@ -105,14 +107,14 @@ export default function Home() {
     );
   }
 
-  const availableRoles = [
-    { id: 'worker', label: 'Worker', icon: Briefcase },
-    { id: 'delivery_boy', label: 'Delivery', icon: Truck },
-    { id: 'manager', label: 'Manager', icon: Users },
-    { id: 'finance_manager', label: 'Finance', icon: IndianRupee },
-  ];
-
   if (!store.currentUser || store.isAuthenticating) {
+    const availableRoles = [
+      { id: 'worker', label: 'Worker', icon: Briefcase },
+      { id: 'delivery_boy', label: 'Delivery', icon: Truck },
+      { id: 'manager', label: 'Manager', icon: Users },
+      { id: 'finance_manager', label: 'Finance', icon: IndianRupee },
+    ];
+
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=2071&auto=format&fit=crop')] bg-cover bg-center">
         <div className="absolute inset-0 bg-background/90 backdrop-blur-sm"></div>
@@ -184,6 +186,11 @@ export default function Home() {
     );
   }
 
+  const isManager = store.currentUser.role === 'manager';
+  const isFinance = store.currentUser.role === 'finance_manager';
+  const isWorker = store.currentUser.role === 'worker';
+  const isDelivery = store.currentUser.role === 'delivery_boy';
+
   const matchesSearch = (j: Job) => 
     j.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || 
     j.location.toLowerCase().includes(searchQuery.toLowerCase());
@@ -191,18 +198,19 @@ export default function Home() {
   const filteredJobs = store.jobs.filter(j => !j.archived && matchesSearch(j));
   const historyJobs = store.jobs.filter(j => j.archived && matchesSearch(j));
   
-  const userJobs = store.currentUser.role === 'delivery_boy' 
+  const userJobs = isDelivery 
     ? filteredJobs.filter(j => j.deliveryBoyId === store.currentUser?.id) 
     : filteredJobs.filter(j => j.assignedWorkerIds?.includes(store.currentUser?.id || ''));
 
   const financePendingJobs = store.jobs.filter(j => j.status === 'completed' && !j.settledAt && matchesSearch(j));
 
-  const currentOperationalJobs = store.currentUser.role === 'manager' 
+  const currentOperationalJobs = isManager 
     ? filteredJobs 
-    : (store.currentUser.role === 'finance_manager' ? financePendingJobs : userJobs);
+    : (isFinance ? financePendingJobs : userJobs);
 
-  const settledJobsList = store.jobs.filter(j => j.paymentStatus === 'fully_paid' || (j.paymentStatus === 'partially_paid' && j.settledAt));
-  const pendingPaymentsList = store.jobs.filter(j => j.settledAt && j.paymentStatus !== 'fully_paid' && matchesSearch(j));
+  // Updated: History only shows fully paid jobs
+  const settledJobsList = store.jobs.filter(j => j.paymentStatus === 'fully_paid');
+  const pendingPaymentsList = store.jobs.filter(j => (j.status === 'completed' || j.settledAt) && j.paymentStatus !== 'fully_paid' && matchesSearch(j));
 
   const getActualHarvestedTrees = (job: Job) => {
     if (!job.workerHarvestReports) return job.treeCount;
@@ -234,13 +242,15 @@ export default function Home() {
   }, 0);
 
   const pendingWorkerSalaries: any[] = [];
-  store.jobs.filter(j => j.status === 'completed' && j.workerPaymentStatuses).forEach(job => {
+  const paidWorkerSalaries: any[] = [];
+
+  store.jobs.filter(j => j.workerPaymentStatuses).forEach(job => {
     const preset = store.presets.find(p => p.id === job.presetId) || store.activePreset;
     Object.entries(job.workerPaymentStatuses!).forEach(([workerId, payInfo]) => {
-      if (payInfo.status === 'unpaid') {
-        const worker = store.workers.find(w => w.id === workerId);
-        const report = job.workerHarvestReports?.[workerId];
-        if (worker && report) {
+      const worker = store.workers.find(w => w.id === workerId);
+      const report = job.workerHarvestReports?.[workerId];
+      if (worker && report) {
+        if (payInfo.status === 'unpaid') {
           pendingWorkerSalaries.push({
             jobId: job.id,
             workerId: workerId,
@@ -250,117 +260,136 @@ export default function Home() {
             amount: report.trees * preset.workerPayPerTree,
             date: job.scheduledDate
           });
+        } else if (payInfo.status === 'fully_paid') {
+          paidWorkerSalaries.push({
+            jobId: job.id,
+            workerId: workerId,
+            workerName: worker.name,
+            customerName: job.customerName,
+            trees: report.trees,
+            amount: report.trees * preset.workerPayPerTree,
+            date: payInfo.paidAt || job.scheduledDate,
+            method: payInfo.method,
+            proof: payInfo.proof
+          });
         }
       }
     });
   });
 
-  const workerPaidJobs = store.jobs.filter(j => 
-    store.currentUser?.id && 
-    j.assignedWorkerIds?.includes(store.currentUser.id) && 
-    j.workerPaymentStatuses?.[store.currentUser.id]?.status === 'fully_paid'
-  );
+  paidWorkerSalaries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const workerTotalEarnings = workerPaidJobs.reduce((acc, job) => {
-    const preset = store.presets.find(p => p.id === job.presetId) || store.activePreset;
-    const trees = job.workerHarvestReports?.[store.currentUser!.id]?.trees || 0;
-    return acc + (trees * preset.workerPayPerTree);
-  }, 0);
-
-  const isManager = store.currentUser.role === 'manager';
-  const isFinance = store.currentUser.role === 'finance_manager';
-  const isWorker = store.currentUser.role === 'worker';
-
-  return (
-    <DashboardLayout user={store.currentUser} onLogout={store.logout} activeView={activeView} onNavigate={setActiveView}>
-      {activeView === 'staff' && isManager ? (
-        <div className="space-y-10 max-w-6xl mx-auto">
-          <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
-             <div className="p-6 border-b border-white/5 bg-white/5">
-                <div className="flex items-center gap-2 text-primary">
-                  <Activity className="w-5 h-5" />
-                  <h3 className="text-xl font-headline font-bold text-white">Harvesting Workers</h3>
-                </div>
-             </div>
-             <Table>
-                <TableHeader className="bg-white/[0.02]">
-                  <TableRow className="border-white/5">
-                    <TableHead className="text-white">Full Name</TableHead>
-                    <TableHead className="text-white">Contact</TableHead>
-                    <TableHead className="text-right text-white">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {store.workers.map((staff) => (
-                    <TableRow key={staff.id} className="border-white/5">
-                      <TableCell className="font-semibold text-white">{staff.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{staff.email}<br/>{staff.phone}</TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10"><Trash2 className="w-4 h-4" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="glass border-white/10">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="text-white">Delete Staff Profile?</AlertDialogTitle>
-                              <AlertDialogDescription className="text-muted-foreground">This will permanently remove {staff.name}.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => store.deleteStaff(staff.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
+  const renderCurrentView = () => {
+    if (activeView === 'staff' && isManager) {
+      return (
+        <div className="space-y-12 max-w-6xl mx-auto">
+          {/* Harvesting Workers Table */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Activity className="w-5 h-5" />
+              </div>
+              <h3 className="text-2xl font-headline font-bold text-white">Harvesting Workers</h3>
+            </div>
+            <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+               <Table>
+                  <TableHeader className="bg-white/[0.02]">
+                    <TableRow className="border-white/5">
+                      <TableHead className="text-white">Full Name</TableHead>
+                      <TableHead className="text-white">Contact</TableHead>
+                      <TableHead className="text-right text-white">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-             </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {store.workers.map((staff) => (
+                      <TableRow key={staff.id} className="border-white/5">
+                        <TableCell className="font-semibold text-white">{staff.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{staff.email}<br/>{staff.phone}</TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10"><Trash2 className="w-4 h-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="glass border-white/10">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-white">Delete Staff Profile?</AlertDialogTitle>
+                                <AlertDialogDescription className="text-muted-foreground">This will permanently remove {staff.name}.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => store.deleteStaff(staff.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {store.workers.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-10 text-muted-foreground italic">No harvesting workers found.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+               </Table>
+            </div>
           </div>
-          <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
-             <div className="p-6 border-b border-white/5 bg-white/5">
-                <div className="flex items-center gap-2 text-primary">
-                  <Truck className="w-5 h-5" />
-                  <h3 className="text-xl font-headline font-bold text-white">Delivery Boys</h3>
-                </div>
-             </div>
-             <Table>
-                <TableHeader className="bg-white/[0.02]">
-                  <TableRow className="border-white/5">
-                    <TableHead className="text-white">Full Name</TableHead>
-                    <TableHead className="text-white">Contact</TableHead>
-                    <TableHead className="text-right text-white">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {store.deliveryBoys.map((staff) => (
-                    <TableRow key={staff.id} className="border-white/5">
-                      <TableCell className="font-semibold text-white">{staff.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{staff.email}<br/>{staff.phone}</TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10"><Trash2 className="w-4 h-4" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="glass border-white/10">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle className="text-white">Delete Staff Profile?</AlertDialogTitle>
-                              <AlertDialogDescription className="text-muted-foreground">This will permanently remove {staff.name}.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => store.deleteStaff(staff.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
+
+          {/* Delivery Boys Table */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500">
+                <Truck className="w-5 h-5" />
+              </div>
+              <h3 className="text-2xl font-headline font-bold text-white">Delivery Personnel</h3>
+            </div>
+            <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+               <Table>
+                  <TableHeader className="bg-white/[0.02]">
+                    <TableRow className="border-white/5">
+                      <TableHead className="text-white">Full Name</TableHead>
+                      <TableHead className="text-white">Contact</TableHead>
+                      <TableHead className="text-right text-white">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-             </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {store.deliveryBoys.map((staff) => (
+                      <TableRow key={staff.id} className="border-white/5">
+                        <TableCell className="font-semibold text-white">{staff.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{staff.email}<br/>{staff.phone}</TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10"><Trash2 className="w-4 h-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="glass border-white/10">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="text-white">Delete Delivery Profile?</AlertDialogTitle>
+                                <AlertDialogDescription className="text-muted-foreground">This will permanently remove {staff.name}.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => store.deleteStaff(staff.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {store.deliveryBoys.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-10 text-muted-foreground italic">No delivery personnel found.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+               </Table>
+            </div>
           </div>
         </div>
-      ) : activeView === 'managers' && isManager ? (
+      );
+    }
+
+    if (activeView === 'managers' && isManager) {
+      return (
         <div className="space-y-6 max-w-6xl mx-auto">
           <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
              <div className="p-6 border-b border-white/5 bg-white/5">
@@ -393,25 +422,11 @@ export default function Home() {
              </Table>
           </div>
         </div>
-      ) : activeView === 'presets' && isManager ? (
-        <div className="space-y-6 max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-headline font-bold text-white">Pricing Presets</h2>
-            <Button onClick={() => setIsPresetModalOpen(true)} className="orange-gradient"><Plus className="w-4 h-4 mr-2" />New Preset</Button>
-          </div>
-          <div className="grid gap-4">
-            {store.presets.map((preset) => (
-              <div key={preset.id} className="glass-card p-6 rounded-2xl border border-white/5 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white">{preset.name}</h3>
-                  <p className="text-sm text-muted-foreground">Total: ₹{preset.totalPricePerTree} | Worker: ₹{preset.workerPayPerTree}</p>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => store.deletePreset(preset.id)} className="text-accent"><Trash2 className="w-4 h-4" /></Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : activeView === 'history' && isManager ? (
+      );
+    }
+
+    if (activeView === 'history' && isManager) {
+      return (
         <div className="space-y-6">
           <div className="flex items-center gap-3 mb-6"><History className="w-6 h-6 text-primary" /><h2 className="text-2xl font-headline font-bold text-white">Job History</h2></div>
           {historyJobs.length > 0 ? (
@@ -442,123 +457,186 @@ export default function Home() {
             </div>
           )}
         </div>
-      ) : activeView === 'salary' && isWorker ? (
-        <div className="space-y-8 max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
-              <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Total Earning</h4>
-              <p className="text-2xl font-headline font-bold text-white flex items-center gap-1">₹{workerTotalEarnings.toLocaleString()}</p>
-            </div>
-            <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
-              <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Jobs Done</h4>
-              <p className="text-2xl font-headline font-bold text-white">{workerPaidJobs.length}</p>
-            </div>
-          </div>
-          <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
-             <div className="p-6 border-b border-white/5 bg-white/5"><h3 className="text-xl font-headline font-bold text-white">Earning Records</h3></div>
-             <Table>
-                <TableHeader className="bg-white/[0.02]">
-                  <TableRow className="border-white/5">
-                    <TableHead className="text-white">Customer</TableHead>
-                    <TableHead className="text-center text-white">Trees</TableHead>
-                    <TableHead className="text-right text-white">Earnings</TableHead>
-                    <TableHead className="text-right text-white">Proof</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {workerPaidJobs.map(job => {
-                    const preset = store.presets.find(p => p.id === job.presetId) || store.activePreset;
-                    const trees = job.workerHarvestReports?.[store.currentUser!.id]?.trees || 0;
-                    const payInfo = job.workerPaymentStatuses?.[store.currentUser!.id];
-                    return (
-                      <TableRow key={job.id} className="border-white/5">
-                        <TableCell className="text-white font-medium">{job.customerName}</TableCell>
-                        <TableCell className="text-center text-primary font-bold">{trees} Trees</TableCell>
-                        <TableCell className="text-right text-white font-mono font-bold">₹{(trees * preset.workerPayPerTree).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">
-                          {payInfo?.proof ? (
-                            <a 
-                              href={payInfo.proof} 
-                              download={`Payment-${job.customerName}.jpg`}
-                              className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-bold transition-colors"
-                            >
-                              <ImageDown className="w-4 h-4" />
-                              Save Proof
-                            </a>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold">
-                              {payInfo?.method === 'cash' ? 'Cash' : 'N/A'}
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-             </Table>
-          </div>
-        </div>
-      ) : activeView === 'worker_salary' && isFinance ? (
+      );
+    }
+
+    if (activeView === 'analytics' && isFinance) {
+      return (
+        <FinancialAnalytics 
+          jobs={store.jobs} 
+          presets={store.presets} 
+          activePreset={store.activePreset} 
+        />
+      );
+    }
+
+    if (activeView === 'due_amount' && isFinance) {
+      return (
         <div className="space-y-6">
-          <div className="flex items-center gap-3 mb-6"><Coins className="w-6 h-6 text-primary" /><h2 className="text-2xl font-headline font-bold text-white">Worker Payroll</h2></div>
-          {pendingWorkerSalaries.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {pendingWorkerSalaries.map((salary, idx) => (
-                <Card key={idx} className="glass-card border border-white/5 overflow-hidden flex flex-col animate-fade-in">
-                  <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between">
-                    <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20 uppercase text-[9px] font-bold">Unpaid</Badge>
-                    <span className="text-[10px] text-muted-foreground">{new Date(salary.date).toLocaleDateString()}</span>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-4 flex-1">
-                    <h3 className="text-xl font-headline font-bold text-white truncate">{salary.workerName}</h3>
-                    <p className="text-xs text-muted-foreground">{salary.customerName}</p>
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-bold uppercase text-muted-foreground">Harvested</p>
-                        <p className="text-lg font-bold text-primary">{salary.trees} Trees</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[9px] font-bold uppercase text-muted-foreground">Net Pay</p>
-                        <p className="text-lg font-mono text-white">₹{salary.amount.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-4 pt-0">
-                    <Button onClick={() => setPayingWorkerData(salary)} className="w-full orange-gradient font-bold h-10 gap-2"><IndianRupee className="w-4 h-4" />Pay Now</Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 glass-card rounded-3xl border-dashed border-2 border-white/10">
-               <Coins className="w-12 h-12 text-muted-foreground/20 mb-3" />
-               <p className="text-muted-foreground text-center">No pending worker salaries to settle.</p>
-            </div>
-          )}
-        </div>
-      ) : activeView === 'due_amount' && isFinance ? (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-headline font-bold text-white">Pending Receivables</h2>
+          <div className="flex items-center gap-3 mb-6"><Wallet className="w-6 h-6 text-primary" /><h2 className="text-2xl font-headline font-bold text-white">Pending Receivables</h2></div>
           {pendingPaymentsList.length > 0 ? (
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {pendingPaymentsList.map(job => (
-                <div key={job.id} className="glass-card p-6 rounded-2xl border border-white/5 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-white font-bold">{job.customerName}</span>
-                    <span className="text-xs text-muted-foreground">{job.location}</span>
-                  </div>
-                  <Button onClick={() => setPaymentSettlingJob(job)} className="orange-gradient">Collect Payment</Button>
-                </div>
+                <JobCard 
+                  key={job.id} 
+                  job={job} 
+                  role={store.currentUser!.role} 
+                  currentUserId={store.currentUser?.id}
+                  assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                  deliveryBoy={store.deliveryBoys.find(b => b.id === job.deliveryBoyId)}
+                  onStatusUpdate={store.updateJobStatus}
+                  onReassign={setReassigningJob}
+                  onAssignDelivery={setAssigningDeliveryJob}
+                  onSetTime={setSetTimeJob}
+                  onWorkerComplete={setWorkerCompleteJob}
+                  onArchive={store.archiveJob}
+                  onDelete={store.deleteJob}
+                  onSettlePayment={setPaymentSettlingJob}
+                  variant="minimal"
+                />
               ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 glass-card rounded-3xl border-dashed border-2 border-white/10">
                <Wallet className="w-12 h-12 text-muted-foreground/20 mb-3" />
-               <p className="text-muted-foreground text-center">Nothing due.</p>
+               <p className="text-muted-foreground text-center">No pending payments from customers.</p>
             </div>
           )}
         </div>
-      ) : activeView === 'payment_history' && isFinance ? (
+      );
+    }
+
+    if (activeView === 'presets' && isManager) {
+      return (
+        <PricingPresetsView 
+          presets={store.presets} 
+          onAdd={store.addPreset} 
+          onDelete={store.deletePreset} 
+        />
+      );
+    }
+
+    if (activeView === 'worker_salary' && isFinance) {
+      return (
+        <div className="space-y-12 animate-fade-in">
+          {/* Subsection: Pending Payroll */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <Coins className="w-5 h-5" />
+              </div>
+              <h2 className="text-2xl font-headline font-bold text-white">Pending Payroll</h2>
+            </div>
+            
+            {pendingWorkerSalaries.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {pendingWorkerSalaries.map((salary, idx) => (
+                  <Card key={idx} className="glass-card border border-white/5 flex flex-col hover:border-primary/20 transition-all">
+                    <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between">
+                      <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20 uppercase text-[9px] font-bold">Unpaid</Badge>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-4 flex-1">
+                      <h3 className="text-xl font-headline font-bold text-white truncate">{salary.workerName}</h3>
+                      <p className="text-xs text-muted-foreground">{salary.customerName}</p>
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase text-muted-foreground">Harvested</p>
+                          <p className="text-lg font-bold text-primary">{salary.trees} Trees</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[9px] font-bold uppercase text-muted-foreground">Net Pay</p>
+                          <p className="text-lg font-mono text-white">₹{salary.amount.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-4 pt-0">
+                      <Button onClick={() => setPayingWorkerData(salary)} className="w-full orange-gradient font-bold h-10 gap-2"><IndianRupee className="w-4 h-4" />Pay Now</Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 glass-card rounded-3xl border-dashed border-2 border-white/10 opacity-60">
+                <p className="text-muted-foreground text-sm italic">No pending payroll to settle.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Subsection: Payroll History */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-green-500/10 text-green-500">
+                <History className="w-5 h-5" />
+              </div>
+              <h2 className="text-2xl font-headline font-bold text-white">Payroll History</h2>
+            </div>
+
+            {paidWorkerSalaries.length > 0 ? (
+              <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+                <Table>
+                  <TableHeader className="bg-white/[0.02]">
+                    <TableRow className="border-white/5">
+                      <TableHead className="text-white">Worker Name</TableHead>
+                      <TableHead className="text-white">Job Details</TableHead>
+                      <TableHead className="text-white text-center">Trees</TableHead>
+                      <TableHead className="text-white text-right">Amount Paid</TableHead>
+                      <TableHead className="text-white text-center">Method</TableHead>
+                      <TableHead className="text-white text-right">Proof</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paidWorkerSalaries.map((paid, idx) => (
+                      <TableRow key={idx} className="border-white/5 hover:bg-white/[0.02]">
+                        <TableCell className="font-semibold text-white">{paid.workerName}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-white/80">{paid.customerName}</span>
+                            <span className="text-[10px] text-muted-foreground">{new Date(paid.date).toLocaleDateString()}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-bold text-primary">{paid.trees}</TableCell>
+                        <TableCell className="text-right font-bold text-green-400">₹{paid.amount.toLocaleString()}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="text-[9px] uppercase font-bold bg-white/5 border-white/10">
+                            {paid.method || 'Cash'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {paid.proof ? (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = paid.proof;
+                                link.download = `SalaryProof-${paid.workerName}-${new Date(paid.date).getTime()}.jpg`;
+                                link.click();
+                              }}
+                              className="h-8 w-8 text-primary hover:bg-primary/10"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase px-2 py-1 bg-white/5 rounded">Cash</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 glass-card rounded-3xl border-dashed border-2 border-white/10 opacity-60">
+                <p className="text-muted-foreground text-sm italic">No payment history found.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeView === 'payment_history' && isFinance) {
+      return (
         <div className="space-y-6">
           <h2 className="text-2xl font-headline font-bold text-white">Financial History</h2>
           {settledJobsList.length > 0 ? (
@@ -618,11 +696,11 @@ export default function Home() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle className="text-white">Delete Financial Record?</AlertDialogTitle>
                                     <AlertDialogDescription className="text-muted-foreground">
-                                      This will permanently delete the payment history for {job.customerName} and update the revenue, profit, and expenses.
+                                      This will permanently delete the payment history for {job.customerName}.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
-                                    <AlertDialogCancel className="bg-white/5 border-white/10 text-white">Cancel</AlertDialogCancel>
+                                    <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">Cancel</AlertDialogCancel>
                                     <AlertDialogAction onClick={() => store.deleteJob(job.id)} className="bg-destructive text-destructive-foreground">Delete Record</AlertDialogAction>
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
@@ -642,97 +720,188 @@ export default function Home() {
             </div>
           )}
         </div>
-      ) : activeView === 'analytics' && isFinance ? (
-        <FinancialAnalytics 
-          jobs={store.jobs} 
-          presets={store.presets} 
-          activePreset={store.activePreset} 
-        />
-      ) : activeView === 'leaderboard' ? (
-        <Leaderboard workers={store.workers} currentUserId={store.currentUser?.id} role={store.currentUser.role} onReset={store.resetRankings} onUpdateStats={store.updateWorkerStats} />
-      ) : (
-        <div className="space-y-8">
-          {isFinance && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
-                <TrendingUp className="w-5 h-5 text-green-500" />
-                <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Revenue</h4>
-                <p className="text-2xl font-headline font-bold text-white">₹{totalRevenue.toLocaleString()}</p>
-              </div>
-              <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
-                <TrendingDown className="w-5 h-5 text-accent" />
-                <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Expense</h4>
-                <p className="text-2xl font-headline font-bold text-white">₹{totalExpense.toLocaleString()}</p>
-              </div>
-              <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
-                <ArrowUpRight className="w-5 h-5 text-blue-400" />
-                <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Net Profit</h4>
-                <p className={cn("text-2xl font-headline font-bold", totalProfit >= 0 ? "text-green-400" : "text-accent")}>
-                  ₹{totalProfit.toLocaleString()}
-                </p>
-              </div>
-              <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
-                <Landmark className="w-5 h-5 text-yellow-500" />
-                <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Due Amount</h4>
-                <p className="text-2xl font-headline font-bold text-white">₹{dueAmountValue.toLocaleString()}</p>
-              </div>
-            </div>
-          )}
+      );
+    }
 
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-headline font-bold text-white">
-              {isFinance ? 'Pending Settlements' : 'Job Requests'}
-            </h2>
-            {isManager && <Button onClick={() => setShowCreateModal(true)} className="orange-gradient"><Plus className="w-4 h-4 mr-2" />New Job</Button>}
+    if (isWorker && activeView === 'salary') {
+      const workerEarnings = store.jobs.filter(j => j.workerPaymentStatuses?.[store.currentUser!.id]?.status === 'fully_paid');
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
+                <IndianRupee className="w-5 h-5 text-primary" />
+                <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Total Earning</h4>
+                <p className="text-2xl font-headline font-bold text-white">
+                  ₹{workerEarnings.reduce((sum, j) => {
+                    const preset = store.presets.find(p => p.id === j.presetId) || store.activePreset;
+                    const trees = j.workerHarvestReports?.[store.currentUser!.id]?.trees || 0;
+                    return sum + (trees * preset.workerPayPerTree);
+                  }, 0).toLocaleString()}
+                </p>
+             </div>
+             <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
+                <Briefcase className="w-5 h-5 text-primary" />
+                <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Jobs Done</h4>
+                <p className="text-2xl font-headline font-bold text-white">{workerEarnings.length}</p>
+             </div>
           </div>
 
-          {currentOperationalJobs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {currentOperationalJobs.map(job => (
-                <JobCard 
-                  key={job.id} 
-                  job={job} 
-                  role={store.currentUser!.role} 
-                  currentUserId={store.currentUser?.id}
-                  assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
-                  deliveryBoy={store.deliveryBoys.find(b => b.id === job.deliveryBoyId)}
-                  onStatusUpdate={store.updateJobStatus}
-                  onReassign={setReassigningJob}
-                  onAssignDelivery={setAssigningDeliveryJob}
-                  onSetTime={setSetTimeJob}
-                  onWorkerComplete={setWorkerCompleteJob}
-                  onArchive={store.archiveJob}
-                  onDelete={store.deleteJob}
-                  onSettlePayment={setPaymentSettlingJob}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground py-10 text-center border-2 border-dashed border-white/5 rounded-3xl">No jobs to display currently.</p>
-          )}
-
-          {isWorker && (
-            <div className="space-y-6 pt-8 border-t border-white/5">
-              <div className="flex items-center gap-3"><Wallet className="w-6 h-6 text-primary" /><h2 className="text-2xl font-headline font-bold text-white">Pending Payments</h2></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {store.jobs.filter(j => j.status === 'completed' && j.workerPaymentStatuses?.[store.currentUser!.id]?.status === 'unpaid').map(job => {
-                   const preset = store.presets.find(p => p.id === job.presetId) || store.activePreset;
-                   const trees = job.workerHarvestReports?.[store.currentUser!.id]?.trees || 0;
-                   return (
-                     <Card key={job.id} className="glass-card border border-white/5">
-                       <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between"><Badge variant="outline" className="text-accent uppercase text-[9px] font-bold">Unpaid</Badge></CardHeader>
-                       <CardContent className="p-4 pt-0">
-                         <h3 className="text-lg font-bold text-white truncate">{job.customerName}</h3>
-                         <div className="flex justify-between text-sm mt-2"><span className="text-muted-foreground">Amount:</span><span className="text-primary font-bold">₹{(trees * preset.workerPayPerTree).toLocaleString()}</span></div>
-                       </CardContent>
-                     </Card>
-                   );
-                })}
-              </div>
-            </div>
-          )}
+          <h3 className="text-xl font-headline font-bold text-white">Earning Records</h3>
+          <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+            <Table>
+               <TableHeader className="bg-white/[0.02]">
+                 <TableRow className="border-white/5">
+                   <TableHead className="text-white">Customer</TableHead>
+                   <TableHead className="text-white">Date</TableHead>
+                   <TableHead className="text-right text-white">Trees</TableHead>
+                   <TableHead className="text-right text-white">Amount</TableHead>
+                   <TableHead className="text-right text-white">Action</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {workerEarnings.map(job => {
+                    const preset = store.presets.find(p => p.id === job.presetId) || store.activePreset;
+                    const trees = job.workerHarvestReports?.[store.currentUser!.id]?.trees || 0;
+                    const payInfo = job.workerPaymentStatuses?.[store.currentUser!.id];
+                    return (
+                      <TableRow key={job.id} className="border-white/5">
+                        <TableCell className="font-semibold text-white">{job.customerName}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{new Date(job.scheduledDate).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right text-primary font-bold">{trees}</TableCell>
+                        <TableCell className="text-right text-green-400 font-bold">₹{(trees * preset.workerPayPerTree).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">
+                          {payInfo?.method === 'gpay' && payInfo.proof ? (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = payInfo.proof!;
+                                link.download = `Proof-${job.customerName}.jpg`;
+                                link.click();
+                              }}
+                              className="text-primary hover:bg-primary/10 text-[10px] font-bold uppercase gap-1.5 h-8"
+                            >
+                              <ImageDown className="w-3.5 h-3.5" /> Save Proof
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground uppercase font-bold px-2 py-1 bg-white/5 rounded-md">Cash Received</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                 })}
+                 {workerEarnings.length === 0 && (
+                   <TableRow>
+                     <TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">No payment records found.</TableCell>
+                   </TableRow>
+                 )}
+               </TableBody>
+            </Table>
+          </div>
         </div>
-      )}
+      );
+    }
+
+    if (activeView === 'leaderboard') {
+      return (
+        <Leaderboard workers={store.workers} currentUserId={store.currentUser?.id} role={store.currentUser.role} onReset={store.resetRankings} onUpdateStats={store.updateWorkerStats} />
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        {isFinance && activeView === 'dashboard' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
+              <TrendingUp className="w-5 h-5 text-green-500" />
+              <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Revenue</h4>
+              <p className="text-2xl font-headline font-bold text-white">₹{totalRevenue.toLocaleString()}</p>
+            </div>
+            <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
+              <TrendingDown className="w-5 h-5 text-accent" />
+              <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Expense</h4>
+              <p className="text-2xl font-headline font-bold text-white">₹{totalExpense.toLocaleString()}</p>
+            </div>
+            <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
+              <ArrowUpRight className="w-5 h-5 text-blue-400" />
+              <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Net Profit</h4>
+              <p className={cn("text-2xl font-headline font-bold", totalProfit >= 0 ? "text-green-400" : "text-accent")}>
+                ₹{totalProfit.toLocaleString()}
+              </p>
+            </div>
+            <div className="glass-card p-6 rounded-3xl border border-white/5 space-y-2">
+              <Landmark className="w-5 h-5 text-yellow-500" />
+              <h4 className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Due Amount</h4>
+              <p className="text-2xl font-headline font-bold text-white">₹{dueAmountValue.toLocaleString()}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-headline font-bold text-white">
+            {isFinance ? 'Pending Settlements' : 'Job Requests'}
+          </h2>
+          {isManager && <Button onClick={() => setShowCreateModal(true)} className="orange-gradient h-11 px-6 font-bold gap-2 shadow-lg shadow-primary/20"><Plus className="w-4 h-4" />New Job</Button>}
+        </div>
+
+        {currentOperationalJobs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {currentOperationalJobs.map(job => (
+              <JobCard 
+                key={job.id} 
+                job={job} 
+                role={store.currentUser!.role} 
+                currentUserId={store.currentUser?.id}
+                assignedWorkers={store.workers.filter(w => job.assignedWorkerIds?.includes(w.id))}
+                deliveryBoy={store.deliveryBoys.find(b => b.id === job.deliveryBoyId)}
+                onStatusUpdate={store.updateJobStatus}
+                onReassign={setReassigningJob}
+                onAssignDelivery={setAssigningDeliveryJob}
+                onSetTime={setSetTimeJob}
+                onWorkerComplete={setWorkerCompleteJob}
+                onArchive={store.archiveJob}
+                onDelete={store.deleteJob}
+                onSettlePayment={setPaymentSettlingJob}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground py-10 text-center border-2 border-dashed border-white/5 rounded-3xl italic">No jobs to display currently.</p>
+        )}
+
+        {isWorker && activeView === 'dashboard' && (
+          <div className="space-y-6 pt-8 border-t border-white/5">
+            <div className="flex items-center gap-3"><Wallet className="w-6 h-6 text-primary" /><h2 className="text-2xl font-headline font-bold text-white">Pending Payments</h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {store.jobs.filter(j => j.status === 'completed' && j.workerPaymentStatuses?.[store.currentUser!.id]?.status === 'unpaid').map(job => {
+                 const preset = store.presets.find(p => p.id === job.presetId) || store.activePreset;
+                 const trees = job.workerHarvestReports?.[store.currentUser!.id]?.trees || 0;
+                 return (
+                   <Card key={job.id} className="glass-card border border-white/5 transition-all hover:border-primary/20">
+                     <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between"><Badge variant="outline" className="text-accent uppercase text-[9px] font-bold border-accent/20 bg-accent/5">Unpaid</Badge></CardHeader>
+                     <CardContent className="p-4 pt-0">
+                       <h3 className="text-lg font-bold text-white truncate">{job.customerName}</h3>
+                       <div className="flex justify-between text-sm mt-2"><span className="text-muted-foreground">Amount:</span><span className="text-primary font-bold">₹{(trees * preset.workerPayPerTree).toLocaleString()}</span></div>
+                     </CardContent>
+                   </Card>
+                 );
+              })}
+              {store.jobs.filter(j => j.status === 'completed' && j.workerPaymentStatuses?.[store.currentUser!.id]?.status === 'unpaid').length === 0 && (
+                <p className="text-muted-foreground text-sm italic col-span-full py-6 text-center">No pending salaries at the moment.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <DashboardLayout user={store.currentUser} onLogout={store.logout} activeView={activeView} onNavigate={setActiveView}>
+      <div className="animate-fade-in">
+        {renderCurrentView()}
+      </div>
 
       <CreateJobModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onAdd={store.addJob} presets={store.presets} />
       <ReassignmentModal job={reassigningJob} workers={store.workers} onClose={() => setReassigningJob(null)} onAssign={store.reassignWorker} />

@@ -17,13 +17,17 @@ import {
   Settings2,
   Wallet,
   Coins,
-  BarChart3
+  BarChart3,
+  BellRing,
+  Loader2,
+  Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { UserProfile } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from './notification-bell';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -59,12 +63,6 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const getNavigation = () => {
-    const base = [
-      { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { id: 'salary', icon: IndianRupee, label: 'Salary' },
-      { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
-    ];
-
     switch (user.role) {
       case 'manager':
         return [
@@ -89,7 +87,11 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
           { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
         ];
       default:
-        return base;
+        return [
+          { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+          { id: 'salary', icon: IndianRupee, label: 'Salary' },
+          { id: 'leaderboard', icon: Trophy, label: 'Leaderboard' },
+        ];
     }
   };
 
@@ -101,7 +103,7 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
   };
 
   const getHeaderTitle = () => {
-    if (activeView === 'leaderboard') return user.role === 'finance_manager' ? 'Worker Leaderboard' : 'Workers Leaderboard';
+    if (activeView === 'leaderboard') return 'Leaderboard';
     if (activeView === 'staff') return 'Workers Directory';
     if (activeView === 'managers') return 'Administrative Team';
     if (activeView === 'presets') return 'Pricing Configuration';
@@ -188,7 +190,8 @@ export function DashboardLayout({ user, onLogout, children, activeView, onNaviga
             </h1>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            <NotificationBell />
             <Badge variant="outline" className="hidden sm:flex bg-green-500/10 text-green-500 border-green-500/20 gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               System Active
