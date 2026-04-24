@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -92,11 +91,11 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
 
   return (
     <Dialog open={!!jobId && !!workerId} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px] glass border-white/10 p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[400px] glass border-black/10 dark:border-white/10 p-0 overflow-hidden">
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-6">
             <DialogHeader>
-              <DialogTitle className="text-xl font-headline flex items-center gap-2 text-white">
+              <DialogTitle className="text-xl font-headline flex items-center gap-2 text-foreground">
                 <IndianRupee className="w-5 h-5 text-primary" />
                 Pay Worker Salary
               </DialogTitle>
@@ -105,9 +104,9 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
               </DialogDescription>
             </DialogHeader>
 
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center gap-1">
+            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/10 dark:border-white/10 flex flex-col items-center justify-center gap-1">
                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Salary Due</span>
-               <span className="text-3xl font-headline font-bold text-white flex items-center gap-1">
+               <span className="text-3xl font-headline font-bold text-foreground flex items-center gap-1">
                   <IndianRupee className="w-5 h-5 text-primary" />
                   {amount.toLocaleString()}
                </span>
@@ -115,7 +114,7 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white text-xs font-bold uppercase tracking-widest">Payment Method</Label>
+                <Label className="text-foreground text-xs font-bold uppercase tracking-widest">Payment Method</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -124,7 +123,7 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
                       "flex items-center justify-center gap-2 py-3 rounded-xl border text-xs font-bold uppercase transition-all",
                       method === 'gpay' 
                         ? "bg-primary/20 border-primary text-primary" 
-                        : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
+                        : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-foreground"
                     )}
                   >
                     <CreditCard className="w-4 h-4" />
@@ -137,7 +136,7 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
                       "flex items-center justify-center gap-2 py-3 rounded-xl border text-xs font-bold uppercase transition-all",
                       method === 'cash' 
                         ? "bg-primary/20 border-primary text-primary" 
-                        : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
+                        : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-foreground"
                     )}
                   >
                     <Wallet className="w-4 h-4" />
@@ -148,15 +147,15 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
 
               {method === 'gpay' && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <Label className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                  <Label className="text-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                     <Camera className="w-3.5 h-3.5 text-primary" />
                     GPay Screenshot
                   </Label>
                   
-                  <div className="relative aspect-video border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] transition-all overflow-hidden">
+                  <div className="relative aspect-video border-2 border-dashed border-black/10 dark:border-white/10 rounded-xl flex flex-col items-center justify-center bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all overflow-hidden">
                      {screenshot ? (
                        <div className="relative w-full h-full group">
-                         <img src={screenshot} className="w-full h-full object-cover" />
+                         <img src={screenshot} className="w-full h-full object-cover" alt="Proof" />
                          <button 
                            type="button"
                            onClick={() => setScreenshot(null)}
@@ -204,12 +203,12 @@ export function WorkerSalaryModal({ jobId, workerId, workerName, amount, onClose
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-white/5 border-t border-white/5">
-            <Button type="button" variant="ghost" onClick={onClose} className="text-white">Cancel</Button>
+          <DialogFooter className="p-6 bg-black/5 dark:bg-white/5 border-t border-black/10 dark:border-white/10">
+            <Button type="button" variant="ghost" onClick={onClose} className="text-foreground">Cancel</Button>
             <Button 
               type="submit" 
               disabled={isCompressing || (method === 'gpay' && !screenshot)} 
-              className="orange-gradient px-8 h-11 font-bold gap-2"
+              className="orange-gradient px-8 h-11 font-bold gap-2 text-white"
             >
               <CheckCircle2 className="w-4 h-4" />
               Mark as Paid

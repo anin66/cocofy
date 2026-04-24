@@ -75,15 +75,15 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
 
   return (
     <Dialog open={!!job} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] glass border-white/10 p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[500px] glass border-black/10 dark:border-white/10 p-0 overflow-hidden">
         <div className="p-6 pb-0">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-white">
+            <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
               <UserPlus className="w-6 h-6 text-primary" />
               Manage Replacements
             </DialogTitle>
             <DialogDescription className="text-muted-foreground pt-1">
-              Select <span className="text-white font-bold">{slotsRemaining}</span> new worker(s) for <span className="text-foreground font-medium text-white">{job?.customerName}</span>.
+              Select <span className="text-foreground font-bold">{slotsRemaining}</span> new worker(s) for <span className="text-foreground font-medium">{job?.customerName}</span>.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -99,7 +99,7 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
                 {alreadyAcceptedIds.map(id => {
                   const worker = workers.find(w => w.id === id);
                   return (
-                    <Badge key={id} variant="outline" className="bg-white/5 border-white/10 text-white h-6">
+                    <Badge key={id} variant="outline" className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground h-6">
                       {worker?.name || id}
                     </Badge>
                   );
@@ -155,15 +155,15 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
                       isSelected 
                         ? "bg-primary/10 border-primary shadow-[0_0_15px_rgba(235,118,25,0.1)]" 
                         : disabled 
-                          ? "opacity-40 grayscale cursor-not-allowed bg-white/5 border-white/10"
-                          : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
+                          ? "opacity-40 grayscale cursor-not-allowed bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10"
+                          : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10"
                     )}
                   >
                     <div className="flex items-center justify-between w-full mb-3">
                       <div className="flex flex-col items-start">
                         <span className={cn(
                           "text-lg font-bold transition-colors",
-                          isSelected ? "text-primary" : "text-white group-hover:text-primary"
+                          isSelected ? "text-primary" : "text-foreground group-hover:text-primary"
                         )}>
                           {w.name}
                         </span>
@@ -174,7 +174,7 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
                       </div>
                       <div className={cn(
                         "w-6 h-6 rounded-full border flex items-center justify-center transition-all",
-                        isSelected ? "bg-primary border-primary" : "border-white/20"
+                        isSelected ? "bg-primary border-primary" : "border-black/20 dark:border-white/20"
                       )}>
                         {isSelected && <Check className="w-4 h-4 text-white" />}
                       </div>
@@ -201,12 +201,12 @@ export function ReassignmentModal({ job, workers, onClose, onAssign }: Reassignm
           </div>
         </div>
 
-        <DialogFooter className="p-6 bg-white/5 border-t border-white/5 flex gap-2">
-          <Button variant="ghost" onClick={onClose} className="flex-1 text-white">Cancel</Button>
+        <DialogFooter className="p-6 bg-black/5 dark:bg-white/5 border-t border-black/10 dark:border-white/10 flex gap-2">
+          <Button variant="ghost" onClick={onClose} className="flex-1 text-foreground">Cancel</Button>
           <Button 
             onClick={handleAssign} 
             disabled={selectedNewWorkerIds.length === 0 && slotsRemaining > 0}
-            className="flex-1 orange-gradient"
+            className="flex-1 orange-gradient text-white"
           >
             Update Team
           </Button>

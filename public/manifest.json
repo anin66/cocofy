@@ -1,23 +1,21 @@
+
 {
-  "name": "Cocofy Harvest Management",
   "short_name": "Cocofy",
-  "description": "Smart job management for coconut harvesting teams.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#120D0B",
-  "theme_color": "#EB7619",
+  "name": "Cocofy - Coconut Harvest Management",
   "icons": [
     {
       "src": "https://picsum.photos/seed/cocofy/192/192",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "https://picsum.photos/seed/cocofy/512/512",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ]
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#EB7619",
+  "background_color": "#0A0D0B"
 }

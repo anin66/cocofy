@@ -4,6 +4,29 @@
 
 @layer base {
   :root {
+    --background: 30 20% 98%;
+    --foreground: 10 15% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 10 15% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 10 15% 10%;
+    --primary: 27 85% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 10% 90%;
+    --secondary-foreground: 10 15% 10%;
+    --muted: 30 10% 94%;
+    --muted-foreground: 10 5% 40%;
+    --accent: 0 90% 72%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 10% 88%;
+    --input: 30 10% 88%;
+    --ring: 27 85% 51%;
+    --radius: 1rem;
+  }
+
+  .dark {
     --background: 10 15% 7%;
     --foreground: 30 10% 95%;
     --card: 10 15% 10%;
@@ -23,7 +46,6 @@
     --border: 10 15% 20%;
     --input: 10 15% 20%;
     --ring: 27 85% 51%;
-    --radius: 0.75rem;
   }
 }
 
@@ -32,7 +54,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body transition-colors duration-300;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;
@@ -40,19 +62,26 @@
 }
 
 .glass {
-  background: rgba(28, 21, 19, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  @apply bg-white/70 dark:bg-[#1c1513]/70 backdrop-blur-xl border border-black/5 dark:border-white/10;
 }
 
 .glass-card {
-  background: rgba(45, 35, 32, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  @apply bg-white/40 dark:bg-[#2d2320]/40 backdrop-blur-md border border-black/5 dark:border-white/5;
 }
 
 .orange-gradient {
   background: linear-gradient(135deg, #EB7619 0%, #F77A7A 100%);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/40;
 }

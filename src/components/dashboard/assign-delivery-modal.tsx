@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState } from 'react';
@@ -55,11 +54,11 @@ export function AssignDeliveryModal({ job, deliveryBoys, onClose, onAssign }: As
 
   return (
     <Dialog open={!!job} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px] glass border-white/10 p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[450px] glass border-black/10 dark:border-white/10 p-0 overflow-hidden">
         <form onSubmit={handleSubmit}>
           <div className="p-6 space-y-6">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-white">
+              <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
                 <Truck className="w-6 h-6 text-primary" />
                 Assign Delivery Boy
               </DialogTitle>
@@ -70,7 +69,7 @@ export function AssignDeliveryModal({ job, deliveryBoys, onClose, onAssign }: As
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white flex items-center gap-2 text-sm font-semibold">
+                <Label className="text-foreground flex items-center gap-2 text-sm font-semibold">
                   <User className="w-4 h-4 text-primary" />
                   Select Personnel
                 </Label>
@@ -78,12 +77,12 @@ export function AssignDeliveryModal({ job, deliveryBoys, onClose, onAssign }: As
                   value={formData.deliveryBoyId} 
                   onValueChange={val => setFormData({ ...formData, deliveryBoyId: val })}
                 >
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                  <SelectTrigger className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground">
                     <SelectValue placeholder="Choose a delivery boy" />
                   </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
+                  <SelectContent className="glass border-black/10 dark:border-white/10">
                     {deliveryBoys.map(boy => (
-                      <SelectItem key={boy.id} value={boy.id} className="text-white">
+                      <SelectItem key={boy.id} value={boy.id} className="text-foreground">
                         {boy.name}
                       </SelectItem>
                     ))}
@@ -97,14 +96,14 @@ export function AssignDeliveryModal({ job, deliveryBoys, onClose, onAssign }: As
               </div>
 
               <div className="space-y-2">
-                <Label className="text-white flex items-center gap-2 text-sm font-semibold">
+                <Label className="text-foreground flex items-center gap-2 text-sm font-semibold">
                   <MapPin className="w-4 h-4 text-primary" />
                   GPS Coordinates or Link
                 </Label>
                 <Input 
                   placeholder="Paste link or coords (e.g. 12.34, 77.56)" 
                   required 
-                  className="bg-white/5 border-white/10 text-white"
+                  className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground"
                   value={formData.gpsUrl}
                   onChange={e => setFormData({ ...formData, gpsUrl: e.target.value })}
                 />
@@ -114,14 +113,14 @@ export function AssignDeliveryModal({ job, deliveryBoys, onClose, onAssign }: As
               </div>
 
               <div className="space-y-2">
-                <Label className="text-white flex items-center gap-2 text-sm font-semibold">
+                <Label className="text-foreground flex items-center gap-2 text-sm font-semibold">
                   <Clock className="w-4 h-4 text-primary" />
                   Expected Pick Up Time
                 </Label>
                 <Input 
                   placeholder="e.g. 10:30 AM" 
                   required 
-                  className="bg-white/5 border-white/10 text-white"
+                  className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground"
                   value={formData.deliveryTime}
                   onChange={e => setFormData({ ...formData, deliveryTime: e.target.value })}
                 />
@@ -129,9 +128,9 @@ export function AssignDeliveryModal({ job, deliveryBoys, onClose, onAssign }: As
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-white/5 border-t border-white/5">
-            <Button type="button" variant="ghost" onClick={onClose} className="text-white">Cancel</Button>
-            <Button type="submit" disabled={!formData.deliveryBoyId || !formData.gpsUrl} className="orange-gradient px-8">Confirm Assignment</Button>
+          <DialogFooter className="p-6 bg-black/5 dark:bg-white/5 border-t border-black/10 dark:border-white/10">
+            <Button type="button" variant="ghost" onClick={onClose} className="text-foreground">Cancel</Button>
+            <Button type="submit" disabled={!formData.deliveryBoyId || !formData.gpsUrl} className="orange-gradient px-8 text-white">Confirm Assignment</Button>
           </DialogFooter>
         </form>
       </DialogContent>

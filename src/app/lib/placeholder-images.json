@@ -1,0 +1,10 @@
+{
+  "placeholderImages": [
+    {
+      "id": "app-icon",
+      "description": "Cocofy brand icon for mobile home screens featuring a sprout logo on an orange gradient.",
+      "imageUrl": "https://picsum.photos/seed/cocofy-icon/192/192",
+      "imageHint": "sprout logo"
+    }
+  ]
+}

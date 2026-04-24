@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -150,7 +149,6 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
         additionalExpenses: additionalExpenses.filter(e => e.description.trim() !== '')
       };
 
-      // Accumulate screenshots from multiple payment sessions
       const existingScreenshots = job.paymentScreenshots || [];
       if (newScreenshots.length > 0) {
         data.paymentScreenshots = [...existingScreenshots, ...newScreenshots];
@@ -178,11 +176,11 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
 
   return (
     <Dialog open={!!job} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] glass border-white/10 p-0 overflow-hidden max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-[500px] glass border-black/10 dark:border-white/10 p-0 overflow-hidden max-h-[90vh] flex flex-col">
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="p-6 pb-2">
             <DialogHeader>
-              <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-white">
+              <DialogTitle className="text-2xl font-headline flex items-center gap-2 text-foreground">
                 <CreditCard className="w-6 h-6 text-primary" />
                 Settle Job Payment
               </DialogTitle>
@@ -193,15 +191,14 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 pt-0 space-y-6 custom-scrollbar">
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/5 flex flex-col gap-2">
+            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Bill</span>
-                  <span className="text-xl font-headline font-bold text-white flex items-center gap-1">
+                  <span className="text-xl font-headline font-bold text-foreground flex items-center gap-1">
                     <IndianRupee className="w-3.5 h-3.5 text-primary" />
                     {totalExpectedAmount.toLocaleString()}
                   </span>
-                  {/* Preset Rate Display */}
                   <span className="text-[10px] text-primary/80 font-bold flex items-center gap-1 mt-1">
                     <Tag className="w-2.5 h-2.5" />
                     Rate: ₹{preset?.totalPricePerTree || 0}/tree
@@ -212,10 +209,10 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                 </Badge>
               </div>
               
-              <div className="pt-2 border-t border-white/5 space-y-1">
+              <div className="pt-2 border-t border-black/5 dark:border-white/5 space-y-1">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-green-500">Previously Paid</span>
-                  <span className="text-sm font-bold text-green-500">₹{alreadyPaid.toLocaleString()}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-500">Previously Paid</span>
+                  <span className="text-sm font-bold text-green-600 dark:text-green-500">₹{alreadyPaid.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Pending Balance</span>
@@ -226,7 +223,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                <Label className="text-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                   <Utensils className="w-3.5 h-3.5 text-primary" />
                   Additional Expenses
                 </Label>
@@ -242,7 +239,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                       placeholder="e.g. Food / Transport"
                       value={expense.description}
                       onChange={e => updateExpense(idx, 'description', e.target.value)}
-                      className="bg-white/5 border-white/10 text-white text-xs h-9 flex-1"
+                      className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground text-xs h-9 flex-1"
                     />
                     <div className="relative w-24">
                       <IndianRupee className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
@@ -251,7 +248,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                         placeholder="0"
                         value={expense.amount || ''}
                         onChange={e => updateExpense(idx, 'amount', e.target.value)}
-                        className="bg-white/5 border-white/10 text-white text-xs h-9 pl-6"
+                        className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground text-xs h-9 pl-6"
                       />
                     </div>
                     <Button type="button" variant="ghost" size="icon" onClick={() => removeExpense(idx)} className="h-9 w-9 text-accent hover:bg-accent/10">
@@ -265,9 +262,9 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
               </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t border-white/5">
+            <div className="space-y-4 pt-4 border-t border-black/5 dark:border-white/5">
               <div className="space-y-2">
-                <Label className="text-white text-xs font-bold uppercase tracking-widest">Select Payment Status</Label>
+                <Label className="text-foreground text-xs font-bold uppercase tracking-widest">Select Payment Status</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['unpaid', 'partially_paid', 'fully_paid'] as PaymentStatus[]).map((status) => (
                     <button
@@ -277,8 +274,8 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                       className={cn(
                         "py-2 px-1 rounded-lg border text-[10px] font-bold uppercase tracking-tighter transition-all",
                         paymentStatus === status 
-                          ? "bg-primary text-white border-primary" 
-                          : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
+                          ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                          : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-foreground"
                       )}
                     >
                       {status.replace('_', ' ')}
@@ -291,7 +288,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white text-xs font-bold uppercase tracking-widest">Amount Received (₹)</Label>
+                      <Label className="text-foreground text-xs font-bold uppercase tracking-widest">Amount Received (₹)</Label>
                       <div className="relative">
                         <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input 
@@ -301,20 +298,20 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                           onChange={e => setAmountPaid(e.target.value)}
                           required
                           disabled={paymentStatus === 'fully_paid'}
-                          className="bg-white/5 border-white/10 pl-9 text-white focus:border-primary/50"
+                          className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 pl-9 text-foreground focus:border-primary/50"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-white text-xs font-bold uppercase tracking-widest">Payment Method</Label>
+                      <Label className="text-foreground text-xs font-bold uppercase tracking-widest">Payment Method</Label>
                       <Select value={paymentMethod} onValueChange={(val: PaymentMethod) => setPaymentMethod(val)}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectTrigger className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground">
                           <SelectValue placeholder="Method" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-white/10">
-                          <SelectItem value="gpay" className="text-white">GPay / Digital</SelectItem>
-                          <SelectItem value="cash" className="text-white">Cash</SelectItem>
+                        <SelectContent className="glass border-black/10 dark:border-white/10">
+                          <SelectItem value="gpay" className="text-foreground">GPay / Digital</SelectItem>
+                          <SelectItem value="cash" className="text-foreground">Cash</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -322,7 +319,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
 
                   {paymentMethod === 'cash' && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <Label className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Label className="text-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                         <UserCheck className="w-3.5 h-3.5 text-primary" />
                         Cash Receiver's Name
                       </Label>
@@ -333,7 +330,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                           value={receivedBy}
                           onChange={e => setReceivedBy(e.target.value)}
                           required={paymentMethod === 'cash'}
-                          className="bg-white/5 border-white/10 pl-9 text-white focus:border-primary/50"
+                          className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 pl-9 text-foreground focus:border-primary/50"
                         />
                       </div>
                     </div>
@@ -345,7 +342,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Remaining after this:</span>
                       <span className={cn(
                         "text-sm font-bold",
-                        remainingAfterThisPayment <= 0 ? "text-green-500" : "text-primary"
+                        remainingAfterThisPayment <= 0 ? "text-green-600 dark:text-green-500" : "text-primary"
                       )}>
                         ₹{Math.max(0, remainingAfterThisPayment).toLocaleString()}
                       </span>
@@ -354,15 +351,15 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Label className="text-foreground text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                         <Camera className="w-3.5 h-3.5 text-primary" />
                         Proof (Screenshots / Receipts)
                       </Label>
                       
                       <div className="grid grid-cols-2 gap-2 mb-2">
                          {newScreenshots.map((src, idx) => (
-                           <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border border-white/10 group">
-                             <img src={src} className="w-full h-full object-cover" />
+                           <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border border-black/10 dark:border-white/10 group">
+                             <img src={src} className="w-full h-full object-cover" alt={`Proof ${idx + 1}`} />
                              <button 
                                type="button"
                                onClick={() => removeScreenshot(idx)}
@@ -372,7 +369,7 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
                              </button>
                            </div>
                          ))}
-                         <div className="relative aspect-video border-2 border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center bg-white/[0.02] hover:bg-white/[0.05] transition-all overflow-hidden">
+                         <div className="relative aspect-video border-2 border-dashed border-black/10 dark:border-white/10 rounded-lg flex flex-col items-center justify-center bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-all overflow-hidden">
                             <input 
                               type="file" 
                               accept="image/*"
@@ -400,9 +397,9 @@ export function PaymentModal({ job, preset, onClose, onConfirm }: PaymentModalPr
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-white/5 border-t border-white/5">
-            <Button type="button" variant="ghost" onClick={onClose} className="text-white">Cancel</Button>
-            <Button type="submit" disabled={!amountPaid || isCompressing || (paymentMethod === 'cash' && !receivedBy)} className="orange-gradient px-8 h-11 font-bold">
+          <DialogFooter className="p-6 bg-black/5 dark:bg-white/5 border-t border-black/5 dark:border-white/5">
+            <Button type="button" variant="ghost" onClick={onClose} className="text-foreground">Cancel</Button>
+            <Button type="submit" disabled={!amountPaid || isCompressing || (paymentMethod === 'cash' && !receivedBy)} className="orange-gradient px-8 h-11 font-bold text-primary-foreground shadow-lg shadow-primary/20">
               {paymentStatus === 'unpaid' ? 'Mark as Unpaid' : 'Confirm Settlement'}
             </Button>
           </DialogFooter>

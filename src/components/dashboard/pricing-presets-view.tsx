@@ -67,33 +67,33 @@ export function PricingPresetsView({ presets, onAdd, onDelete }: PricingPresetsV
             <Settings2 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-xl font-headline font-bold text-white">Pricing Presets</h3>
+            <h3 className="text-xl font-headline font-bold text-foreground">Pricing Presets</h3>
             <p className="text-xs text-muted-foreground">Manage service rates and worker compensation</p>
           </div>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)} className="orange-gradient h-10 px-6 font-bold gap-2 shadow-lg shadow-primary/20">
+        <Button onClick={() => setIsAddModalOpen(true)} className="orange-gradient h-10 px-6 font-bold gap-2 shadow-lg shadow-primary/20 text-white">
           <Plus className="w-4 h-4" /> New Preset
         </Button>
       </div>
 
-      <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
+      <div className="glass-card rounded-3xl overflow-hidden border border-black/5 dark:border-white/5">
         <Table>
-          <TableHeader className="bg-white/[0.02]">
-            <TableRow className="border-white/5">
-              <TableHead className="text-white">Preset Name</TableHead>
-              <TableHead className="text-right text-white">Total Rate / Tree</TableHead>
-              <TableHead className="text-right text-white">Worker Pay / Tree</TableHead>
-              <TableHead className="text-right text-white">Net Margin</TableHead>
-              <TableHead className="text-right text-white">Actions</TableHead>
+          <TableHeader className="bg-black/[0.02] dark:bg-white/[0.02]">
+            <TableRow className="border-black/5 dark:border-white/5">
+              <TableHead className="text-foreground">Preset Name</TableHead>
+              <TableHead className="text-right text-foreground">Total Rate / Tree</TableHead>
+              <TableHead className="text-right text-foreground">Worker Pay / Tree</TableHead>
+              <TableHead className="text-right text-foreground">Net Margin</TableHead>
+              <TableHead className="text-right text-foreground">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {presets.map((preset) => (
-              <TableRow key={preset.id} className="border-white/5 hover:bg-white/[0.02] transition-colors">
-                <TableCell className="font-semibold text-white">{preset.name}</TableCell>
+              <TableRow key={preset.id} className="border-black/5 dark:border-white/5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+                <TableCell className="font-semibold text-foreground">{preset.name}</TableCell>
                 <TableCell className="text-right text-primary font-bold">₹{preset.totalPricePerTree.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-green-400 font-bold">₹{preset.workerPayPerTree.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-blue-400 font-mono">
+                <TableCell className="text-right text-green-600 dark:text-green-400 font-bold">₹{preset.workerPayPerTree.toLocaleString()}</TableCell>
+                <TableCell className="text-right text-blue-600 dark:text-blue-400 font-mono">
                   ₹{(preset.totalPricePerTree - preset.workerPayPerTree).toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right">
@@ -103,15 +103,15 @@ export function PricingPresetsView({ presets, onAdd, onDelete }: PricingPresetsV
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="glass border-white/10">
+                    <AlertDialogContent className="glass border-black/10 dark:border-white/10">
                       <AlertDialogHeader>
-                        <AlertDialogTitle className="text-white">Delete Preset?</AlertDialogTitle>
+                        <AlertDialogTitle className="text-foreground">Delete Preset?</AlertDialogTitle>
                         <AlertDialogDescription className="text-muted-foreground">
                           This will remove "{preset.name}". Active jobs using this preset will not be affected.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground hover:bg-black/10 dark:hover:bg-white/10">Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={() => onDelete(preset.id)} className="bg-destructive text-destructive-foreground">Delete Permanently</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -131,11 +131,11 @@ export function PricingPresetsView({ presets, onAdd, onDelete }: PricingPresetsV
       </div>
 
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-[400px] glass border-white/10 p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[400px] glass border-black/10 dark:border-white/10 p-0 overflow-hidden">
           <form onSubmit={handleSubmit}>
             <div className="p-6 space-y-6">
               <DialogHeader>
-                <DialogTitle className="text-xl font-headline flex items-center gap-2 text-white">
+                <DialogTitle className="text-xl font-headline flex items-center gap-2 text-foreground">
                   <Settings2 className="w-5 h-5 text-primary" />
                   Add New Pricing Preset
                 </DialogTitle>
@@ -146,19 +146,19 @@ export function PricingPresetsView({ presets, onAdd, onDelete }: PricingPresetsV
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-white">Preset Name</Label>
+                  <Label htmlFor="name" className="text-foreground">Preset Name</Label>
                   <Input 
                     id="name"
                     placeholder="e.g. Standard Rate, Premium Zone"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="bg-white/5 border-white/10 text-white focus:border-primary/50"
+                    className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground focus:border-primary/50"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="total" className="text-white flex items-center gap-2">
+                    <Label htmlFor="total" className="text-foreground flex items-center gap-2">
                       <IndianRupee className="w-3.5 h-3.5 text-primary" />
                       Rate / Tree
                     </Label>
@@ -169,12 +169,12 @@ export function PricingPresetsView({ presets, onAdd, onDelete }: PricingPresetsV
                       value={formData.totalPricePerTree}
                       onChange={e => setFormData({ ...formData, totalPricePerTree: e.target.value })}
                       required
-                      className="bg-white/5 border-white/10 text-white focus:border-primary/50"
+                      className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground focus:border-primary/50"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="worker" className="text-white flex items-center gap-2">
-                      <Coins className="w-3.5 h-3.5 text-green-400" />
+                    <Label htmlFor="worker" className="text-foreground flex items-center gap-2">
+                      <Coins className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
                       Worker Pay
                     </Label>
                     <Input 
@@ -184,16 +184,16 @@ export function PricingPresetsView({ presets, onAdd, onDelete }: PricingPresetsV
                       value={formData.workerPayPerTree}
                       onChange={e => setFormData({ ...formData, workerPayPerTree: e.target.value })}
                       required
-                      className="bg-white/5 border-white/10 text-white focus:border-primary/50"
+                      className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground focus:border-primary/50"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <DialogFooter className="p-6 bg-white/5 border-t border-white/5">
-              <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)} className="text-white hover:bg-white/10">Cancel</Button>
-              <Button type="submit" className="orange-gradient px-8 h-11 font-bold shadow-lg shadow-primary/20">Create Preset</Button>
+            <DialogFooter className="p-6 bg-black/5 dark:bg-white/5 border-t border-black/10 dark:border-white/10">
+              <Button type="button" variant="ghost" onClick={() => setIsAddModalOpen(false)} className="text-foreground hover:bg-black/10 dark:hover:bg-white/10">Cancel</Button>
+              <Button type="submit" className="orange-gradient px-8 h-11 font-bold shadow-lg shadow-primary/20 text-white">Create Preset</Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -1,4 +1,3 @@
-
 export type Role = 'manager' | 'worker' | 'delivery_boy' | 'finance_manager';
 
 export interface UserProfile {
@@ -61,6 +60,7 @@ export interface PricingPreset {
 export interface AdditionalExpense {
   description: string;
   amount: number;
+  category?: 'transport' | 'food' | 'maintenance' | 'other';
 }
 
 export interface WorkerPaymentInfo {
@@ -81,20 +81,18 @@ export interface Job {
   treeCount: number;
   requiredWorkersCount: number;
   assignedWorkerIds: string[];
-  workerStatuses: Record<string, JobStatus>; // Track status per worker ID
-  status: JobStatus; // Overall job status
+  workerStatuses: Record<string, JobStatus>; 
+  status: JobStatus; 
   createdAt: string;
   notes?: string;
-  presetId?: string; // Reference to selected PricingPreset
+  presetId?: string; 
   // Delivery fields
   deliveryBoyId?: string;
-  deliveryTime?: string; // AM/PM format
+  deliveryTime?: string; 
   gpsUrl?: string;
   deliveryConfirmedByBoy?: boolean;
   // Completion Workflow
-  deliveryCheckRequested?: boolean;
   deliveryDone?: boolean;
-  harvestCheckRequested?: boolean;
   harvestDone?: boolean;
   workerHarvestReports?: Record<string, HarvestReport>;
   workerPaymentStatuses?: Record<string, WorkerPaymentInfo>;
@@ -103,8 +101,7 @@ export interface Job {
   paymentStatus?: PaymentStatus;
   amountPaid?: number;
   paymentMethod?: PaymentMethod;
-  paymentScreenshot?: string; // Legacy field
-  paymentScreenshots?: string[]; // Array of Data URIs for multiple partial payments
+  paymentScreenshots?: string[]; 
   cashReceivedBy?: string;
   settledAt?: string;
   additionalExpenses?: AdditionalExpense[];

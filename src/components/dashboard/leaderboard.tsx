@@ -10,7 +10,7 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { Trophy, Medal, Star, User, RotateCcw, Edit2, Save } from 'lucide-react';
+import { Trophy, Medal, Star, RotateCcw, Edit2, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,9 +61,9 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
 
   const getRankIcon = (index: number) => {
     switch (index) {
-      case 0: return <Trophy className="w-5 h-5 text-yellow-400" />;
-      case 1: return <Medal className="w-5 h-5 text-gray-300" />;
-      case 2: return <Medal className="w-5 h-5 text-amber-600" />;
+      case 0: return <Trophy className="w-5 h-5 text-yellow-500" />;
+      case 1: return <Medal className="w-5 h-5 text-slate-400" />;
+      case 2: return <Medal className="w-5 h-5 text-amber-700" />;
       default: return <span className="text-muted-foreground font-bold w-5 text-center">{index + 1}</span>;
     }
   };
@@ -101,39 +101,39 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
   };
 
   return (
-    <div className="glass-card rounded-3xl overflow-hidden border border-white/5">
-      <div className="p-6 border-b border-white/5 bg-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="glass-card rounded-3xl overflow-hidden border border-black/5 dark:border-white/5">
+      <div className="p-6 border-b border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-primary/10 text-primary">
             <Star className="w-5 h-5" />
           </div>
-          <h3 className="text-xl font-headline font-bold text-white">Workers Leaderboard</h3>
+          <h3 className="text-xl font-headline font-bold text-foreground">Workers Leaderboard</h3>
         </div>
         
         {role === 'manager' && (
           <div className="flex items-center gap-2">
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-white">
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground">
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
                   Reset Ranking
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="glass border-white/10">
+              <AlertDialogContent className="glass border-black/10 dark:border-white/10">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-white">Reset All Rankings?</AlertDialogTitle>
+                  <AlertDialogTitle className="text-foreground">Reset All Rankings?</AlertDialogTitle>
                   <AlertDialogDescription className="text-muted-foreground">
                     This will set all workers' points, accepted, and rejected jobs to 0. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={onReset} className="orange-gradient">Reset All</AlertDialogAction>
+                  <AlertDialogCancel className="text-foreground">Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={onReset} className="orange-gradient text-white">Reset All</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
             
-            <Button size="sm" className="orange-gradient text-xs" onClick={handleEditClick}>
+            <Button size="sm" className="orange-gradient text-xs text-white shadow-lg" onClick={handleEditClick}>
               <Edit2 className="w-3.5 h-3.5 mr-1.5" />
               Edit Ranking
             </Button>
@@ -143,12 +143,12 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
 
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-white/[0.02]">
-            <TableRow className="border-white/5 hover:bg-transparent">
-              <TableHead className="w-16 text-center">Rank</TableHead>
-              <TableHead>Worker</TableHead>
-              <TableHead className="text-right">Points</TableHead>
-              <TableHead className="text-right hidden sm:table-cell text-green-400">Accepted</TableHead>
+          <TableHeader className="bg-black/[0.01] dark:bg-white/[0.01]">
+            <TableRow className="border-black/5 dark:border-white/5 hover:bg-transparent">
+              <TableHead className="w-16 text-center text-muted-foreground">Rank</TableHead>
+              <TableHead className="text-muted-foreground">Worker</TableHead>
+              <TableHead className="text-right text-muted-foreground">Points</TableHead>
+              <TableHead className="text-right hidden sm:table-cell text-green-600">Accepted</TableHead>
               <TableHead className="text-right hidden sm:table-cell text-accent">Rejected</TableHead>
             </TableRow>
           </TableHeader>
@@ -159,8 +159,8 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
                 <TableRow 
                   key={worker.id} 
                   className={cn(
-                    "border-white/5 transition-colors group",
-                    isMe ? "bg-primary/10 hover:bg-primary/20" : "hover:bg-white/5"
+                    "border-black/5 dark:border-white/5 transition-colors group",
+                    isMe ? "bg-primary/10 hover:bg-primary/20" : "hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
                   )}
                 >
                   <TableCell className="text-center py-4">
@@ -172,24 +172,24 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                        isMe ? "bg-primary text-white" : "bg-white/10 text-muted-foreground"
+                        isMe ? "bg-primary text-white" : "bg-black/5 dark:bg-white/10 text-muted-foreground"
                       )}>
                         {worker.name[0].toUpperCase()}
                       </div>
                       <div className="flex flex-col">
                         <span className={cn(
                           "font-semibold transition-colors",
-                          isMe ? "text-primary" : "text-white group-hover:text-primary"
+                          isMe ? "text-primary" : "text-foreground group-hover:text-primary"
                         )}>
                           {worker.name} {isMe && "(You)"}
                         </span>
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
                           {worker.availability}
                         </span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-mono font-bold text-lg text-white">
+                  <TableCell className="text-right font-mono font-bold text-lg text-foreground">
                     {worker.points || 0}
                   </TableCell>
                   <TableCell className="text-right hidden sm:table-cell text-muted-foreground">
@@ -206,10 +206,10 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
       </div>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[400px] glass border-white/10 p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-[400px] glass border-black/10 dark:border-white/10 p-0 overflow-hidden">
           <div className="p-6 space-y-6">
             <DialogHeader>
-              <DialogTitle className="text-xl font-headline flex items-center gap-2 text-white">
+              <DialogTitle className="text-xl font-headline flex items-center gap-2 text-foreground">
                 <Edit2 className="w-5 h-5 text-primary" />
                 Edit Worker Ranking
               </DialogTitle>
@@ -220,14 +220,14 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-white">Select Worker</Label>
+                <Label className="text-foreground">Select Worker</Label>
                 <Select value={editingWorkerId} onValueChange={handleWorkerSelect}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                  <SelectTrigger className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground">
                     <SelectValue placeholder="Choose a worker" />
                   </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
+                  <SelectContent className="glass border-black/10 dark:border-white/10">
                     {workers.map(w => (
-                      <SelectItem key={w.id} value={w.id} className="text-white">
+                      <SelectItem key={w.id} value={w.id}>
                         {w.name}
                       </SelectItem>
                     ))}
@@ -237,34 +237,34 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
 
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
-                  <Label htmlFor="points" className="text-white">Total Points</Label>
+                  <Label htmlFor="points" className="text-foreground">Total Points</Label>
                   <Input 
                     id="points"
                     type="number"
                     value={editStats.points}
                     onChange={e => setEditStats({ ...editStats, points: parseInt(e.target.value) || 0 })}
-                    className="bg-white/5 border-white/10 text-white"
+                    className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="accepted" className="text-white">Accepted</Label>
+                    <Label htmlFor="accepted" className="text-foreground">Accepted</Label>
                     <Input 
                       id="accepted"
                       type="number"
                       value={editStats.acceptedJobs}
                       onChange={e => setEditStats({ ...editStats, acceptedJobs: parseInt(e.target.value) || 0 })}
-                      className="bg-white/5 border-white/10 text-white"
+                      className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="rejected" className="text-white">Rejected</Label>
+                    <Label htmlFor="rejected" className="text-foreground">Rejected</Label>
                     <Input 
                       id="rejected"
                       type="number"
                       value={editStats.rejectedJobs}
                       onChange={e => setEditStats({ ...editStats, rejectedJobs: parseInt(e.target.value) || 0 })}
-                      className="bg-white/5 border-white/10 text-white"
+                      className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-foreground"
                     />
                   </div>
                 </div>
@@ -272,9 +272,9 @@ export function Leaderboard({ workers, currentUserId, role, onReset, onUpdateSta
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-white/5 border-t border-white/5">
-            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)} className="text-white">Cancel</Button>
-            <Button onClick={handleSaveStats} className="orange-gradient gap-2">
+          <DialogFooter className="p-6 bg-black/5 dark:bg-white/5 border-t border-black/5 dark:border-white/5">
+            <Button variant="ghost" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveStats} className="orange-gradient gap-2 text-white shadow-lg">
               <Save className="w-4 h-4" />
               Save Changes
             </Button>

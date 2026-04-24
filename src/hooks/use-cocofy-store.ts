@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -19,10 +20,8 @@ import {
   setDoc, 
   getDoc,
   increment,
-  arrayUnion,
   query,
   where,
-  getDocs
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -87,34 +86,8 @@ export function useCocofyStore() {
   const allUsers = usersData || [];
   const workers = allUsers.filter(u => u.role === 'worker').sort((a, b) => (b.points || 0) - (a.points || 0));
   const deliveryBoys = allUsers.filter(u => u.role === 'delivery_boy').sort((a, b) => (b.points || 0) - (a.points || 0));
-  const managers = allUsers.filter(u => u.role === 'manager' || u.role === 'finance_manager').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   const presets = (presetsData || []).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const activePreset = presets[0] || { id: 'default', totalPricePerTree: 50, workerPayPerTree: 20 };
-
-  // Helper to send notifications
-  const sendNotification = (userId: string, title: string, message: string, type: Notification['type'] = 'info') => {
-    if (!db) return;
-    const nRef = doc(collection(db, 'notifications'));
-    const n: Notification = {
-      id: nRef.id,
-      userId,
-      title,
-      message,
-      type,
-      read: false,
-      createdAt: new Date().toISOString()
-    };
-    setDoc(nRef, n);
-    
-    // Toast if the recipient is the current user
-    if (authUser?.uid === userId) {
-      toast({
-        title,
-        description: message,
-        variant: type === 'warning' ? 'destructive' : 'default'
-      });
-    }
-  };
 
   const login = async (targetRole: Role, email?: string, password?: string) => {
     if (!email || !password || isAuthenticating) return;
@@ -186,30 +159,19 @@ export function useCocofyStore() {
 
     let updates: any = { status };
 
-    // Workflow Logic & Push Notifications
+    // Workflow Logic
     if (currentUser.role === 'worker' && (status === 'accepted' || status === 'rejected')) {
       const newWorkerStatuses = { ...job.workerStatuses, [currentUser.id]: status };
       updates.workerStatuses = newWorkerStatuses;
       
-      // Calculate overall job status based on team responses
       const totalRequired = job.assignedWorkerIds?.length || 1;
       const acceptedCount = Object.values(newWorkerStatuses).filter(s => s === 'accepted').length;
       
-      // If all workers have accepted, move the job status to confirmed to trigger logistics
       if (acceptedCount >= totalRequired) {
         updates.status = 'confirmed';
       } else {
-        // Otherwise keep it pending so manager can see awaiting responses or manage replacements
         updates.status = 'pending';
       }
-
-      // Notify Manager
-      sendNotification(
-        job.managerId, 
-        `Worker ${status.charAt(0).toUpperCase() + status.slice(1)}`, 
-        `${currentUser.name} has ${status} the job for ${job.customerName}.`,
-        status === 'rejected' ? 'warning' : 'success'
-      );
 
       if (status === 'accepted') {
         updateDocumentNonBlocking(doc(db, 'users', currentUser.id), { points: increment(10), acceptedJobs: increment(1) });
@@ -221,17 +183,9 @@ export function useCocofyStore() {
     if (currentUser.role === 'delivery_boy') {
       if (status === 'delivery_assigned' && !job.deliveryConfirmedByBoy) {
         updates.deliveryConfirmedByBoy = true;
-        sendNotification(job.managerId, "Task Confirmed", `${currentUser.name} has confirmed the delivery task for ${job.customerName}.`, "success");
-      } else if (status === 'delivery_pickup_started') {
-        sendNotification(job.managerId, "Pickup Started", `Delivery boy ${currentUser.name} has started the pickup.`, "info");
       } else if (status === 'delivery_destination_reached') {
         updates.deliveryDone = true;
-        sendNotification(job.managerId, "Arrival Notice", `Delivery boy ${currentUser.name} has reached the destination for ${job.customerName}.`, "success");
       }
-    }
-
-    if (status === 'harvest_started') {
-      sendNotification(job.managerId, "Harvest Started", `The team has started harvesting at ${job.customerName}.`, "info");
     }
 
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
@@ -239,15 +193,6 @@ export function useCocofyStore() {
 
   const reassignWorker = (jobId: string, workerIds: string[]) => {
     if (!db) return;
-    const job = jobs.find(j => j.id === jobId);
-    if (!job) return;
-
-    workerIds.forEach(id => {
-      if (!job.assignedWorkerIds?.includes(id)) {
-        sendNotification(id, "New Job Request", `You have been assigned to harvest for ${job.customerName}. Check the details!`, "info");
-      }
-    });
-
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
       assignedWorkerIds: workerIds,
       status: 'pending' 
@@ -256,11 +201,6 @@ export function useCocofyStore() {
 
   const assignDeliveryBoy = (jobId: string, data: { deliveryBoyId: string, deliveryTime: string, gpsUrl: string }) => {
     if (!db) return;
-    const job = jobs.find(j => j.id === jobId);
-    if (!job) return;
-
-    sendNotification(data.deliveryBoyId, "New Delivery Task", `Pick up harvest from ${job.customerName} at ${data.deliveryTime}.`, "info");
-
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { 
       ...data,
       status: 'delivery_assigned',
@@ -285,14 +225,6 @@ export function useCocofyStore() {
     if (reportsCount >= totalRequired) {
       updates.status = 'completed';
       updates.harvestDone = true;
-      
-      // Notify Manager
-      sendNotification(job.managerId, "Job Completed", `Harvesting for ${job.customerName} is finished. Total trees: ${trees}.`, "success");
-      
-      // Notify Finance Managers for settlement
-      allUsers.filter(u => u.role === 'finance_manager').forEach(f => {
-        sendNotification(f.id, "New Settlement Pending", `Payment settlement required for ${job.customerName}. Harvest completed.`, "warning");
-      });
     }
 
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), updates);
@@ -314,9 +246,6 @@ export function useCocofyStore() {
     };
 
     updateDocumentNonBlocking(doc(db, 'jobs', jobId), { workerPaymentStatuses: newPaymentStatuses });
-    
-    // Notify Worker
-    sendNotification(workerId, "Salary Settled", `Your payment for ${job.customerName} has been processed via ${method.toUpperCase()}.`, "success");
   };
 
   return {
@@ -325,7 +254,6 @@ export function useCocofyStore() {
     notifications,
     workers,
     deliveryBoys,
-    managers,
     presets,
     activePreset,
     isAuthenticating,
@@ -338,8 +266,8 @@ export function useCocofyStore() {
       addDocumentNonBlocking(collection(db, 'jobs'), { 
         ...data, 
         managerId: currentUser.id, 
-        status: 'unconfirmed', 
-        assignedWorkerIds: [], 
+        status: data.assignedWorkerIds?.length > 0 ? 'pending' : 'unconfirmed', 
+        assignedWorkerIds: data.assignedWorkerIds || [], 
         workerStatuses: {}, 
         createdAt: new Date().toISOString(), 
         paymentStatus: 'unpaid' 
